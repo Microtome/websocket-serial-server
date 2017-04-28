@@ -23,7 +23,7 @@ fn main() {
 		ap.set_description("Provide access to serial ports over JSON Websockets");
 		ap.refer( &mut port)
 			.add_option(&["-p","--port"], Store, "Http Port");
-		        ap.parse_args_or_exit();
+		ap.parse_args_or_exit();
 	}
 
 	// The HTTP server handler
