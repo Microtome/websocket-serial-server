@@ -1,0 +1,9 @@
+[package]
+name = "websocket-serial-server"
+version = "0.1.0"
+authors = ["Daniel Joyce <daniel.a.joyce@gmail.com>"]
+
+[dependencies]
+hyper = "0.10.9"
+websocket = "0.19.1"
+serialport = "1.0.1"
