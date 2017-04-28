@@ -1,5 +1,5 @@
 [package]
-name = "websocket-serial-server"
+name = "websocket_serial_server"
 version = "0.1.0"
 authors = ["Daniel Joyce <daniel.a.joyce@gmail.com>"]
 
@@ -11,3 +11,7 @@ serde = "1.0.2"
 argparse = "0.2.1"
 serde_json = "1.0.1"
 serde_derive = "1.0.2"
+
+[[bin]]
+name = "wsss"
+path = "src/main.rs"
