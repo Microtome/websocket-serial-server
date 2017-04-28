@@ -1,5 +1,6 @@
 extern crate websocket;
 extern crate hyper;
+extern crate argparse;
 
 use std::thread;
 use std::io::Write;
@@ -9,26 +10,40 @@ use hyper::Server as HttpServer;
 use hyper::net::Fresh;
 use hyper::server::request::Request;
 use hyper::server::response::Response;
+use argparse::{ArgumentParser, Store};
 
-const HTML: &'static str = include_str!("websockets.html");
-
-// The HTTP server handler
-fn http_handler(_: Request, response: Response<Fresh>) {
-	let mut response = response.start().unwrap();
-	// Send a client webpage
-	response.write_all(HTML.as_bytes()).unwrap();
-	response.end().unwrap();
-}
 
 fn main() {
+
+	// Parse cmdline args 
+	let mut port = 8080;
+
+	{
+		let mut ap = ArgumentParser::new();
+		ap.set_description("Provide access to serial ports over JSON Websockets");
+		ap.refer( &mut port)
+			.add_option(&["-p","--port"], Store, "Http Port");
+		        ap.parse_args_or_exit();
+	}
+
+	// The HTTP server handler
+	let http_handler = move |_: Request, response: Response<Fresh>| {
+		let mut response = response.start().unwrap();
+		// Send a client webpage
+		response.write_all(format!(include_str!("websockets.html"),wsPort=port+1).as_bytes()).unwrap();
+		response.end().unwrap();
+	};
+
+	println!("Using ports {} {}", port, port+1);
+
 	// Start listening for http connections
 	thread::spawn(move || {
-		              let http_server = HttpServer::http("127.0.0.1:8080").unwrap();
+		              let http_server = HttpServer::http(format!("127.0.0.1:{}",port)).unwrap();
 		              http_server.handle(http_handler).unwrap();
 		             });
 
 	// Start listening for WebSocket connections
-	let ws_server = Server::bind("127.0.0.1:2794").unwrap();
+	let ws_server = Server::bind(format!("127.0.0.1:{}",port+1)).unwrap();
 
 	for connection in ws_server.filter_map(Result::ok) {
 		// Spawn a new thread for each connection.
