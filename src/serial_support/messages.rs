@@ -21,6 +21,8 @@ pub enum SerialRequest {
     data: String,
     base64: Option<bool>,
   },
+  /// Close a port
+  Close { port: String },
 }
 
 /// Represents the possible error types
@@ -58,6 +60,8 @@ pub enum SerialResponse {
     data: String,
     base64: Option<bool>,
   },
+  /// Port was closed
+  Closed { port: String },
   /// Ok response showing that command was accepted
   Accepted { request: SerialRequest },
 }
