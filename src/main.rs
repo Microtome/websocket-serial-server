@@ -79,7 +79,7 @@ fn main() {
         return;
       }
 
-      let mut client = connection
+      let client = connection
         .use_protocol("rust-websocket")
         .accept()
         .unwrap();
@@ -88,8 +88,8 @@ fn main() {
 
       info!("Connection from {}", ip);
 
-    //   let message = Message::text("Hello".to_string());
-    //   client.send_message(&message).unwrap();
+      //   let message = Message::text("Hello".to_string());
+      //   client.send_message(&message).unwrap();
 
       let (mut receiver, mut sender) = client.split().unwrap();
 
@@ -167,5 +167,6 @@ fn handle_serial_req(req: SerialRequest) {
     } => {}
     SerialRequest::WriteLock { handle, port } => {}
     SerialRequest::ReleaseWriteLock { handle, port } => {}
+    SerialRequest::Close { port } => {}
   }
 }
