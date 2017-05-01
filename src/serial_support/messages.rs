@@ -1,21 +1,28 @@
-extern crate serde;
-extern crate serde_json;
 
 /// Represents the valid json requests that can be made
 #[derive(Serialize, Deserialize, Clone)]
 pub enum SerialRequest {
     /// Open a port for reading
-    Open { port: String },
+    Open { port: String, req_id: String },
     /// Take control of a port for writing
-    WriteLock { handle: String, port: String },
+    WriteLock {
+        handle: String,
+        port: String,
+        req_id: String,
+    },
     /// Release control of a port for writing
-    ReleaseWriteLock { handle: String, port: String },
+    ReleaseWriteLock {
+        handle: String,
+        port: String,
+        req_id: String,
+    },
     /// Write data, only works if we have control
     Write {
         handle: String,
         port: String,
         data: String,
         base64: Option<bool>,
+        req_id: String,
     },
 }
 
@@ -23,6 +30,8 @@ pub enum SerialRequest {
 /// that can be returned
 #[derive(Serialize, Deserialize, Clone)]
 pub enum ErrorType {
+    /// Failed to parse message
+    JsonParseFailure,
     /// Unknown request
     UnknownRequest,
     /// Someone else has already locked the port for writing
@@ -40,10 +49,15 @@ pub enum SerialResponse {
     Error {
         kind: ErrorType,
         msg: String,
-        port: String,
+        port: Option<String>,
         handle: Option<String>,
     },
     /// Data that was read from port
-    Response { data: String, base64: Option<bool> },
+    Read {
+        port: String,
+        data: String,
+        base64: Option<bool>,
+    },
+    /// Ok response showing that command was accepted
+    Ok { request: SerialRequest },
 }
-

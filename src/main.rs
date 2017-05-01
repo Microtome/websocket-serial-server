@@ -1,14 +1,20 @@
-extern crate websocket;
-extern crate hyper;
-extern crate serialport;
 extern crate argparse;
-extern crate serde_json;
+extern crate env_logger;
+extern crate hyper;
+#[macro_use]
+extern crate log;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_json;
+extern crate serialport;
+extern crate websocket;
+
 mod serial_support;
 
 use std::thread;
 use std::io::Write;
+use std::time::Duration;
+use std::collections::HashMap;
 
 use argparse::{ArgumentParser, Store};
 use websocket::{Server, Message};
@@ -17,17 +23,35 @@ use hyper::Server as HttpServer;
 use hyper::net::Fresh;
 use hyper::server::request::Request;
 use hyper::server::response::Response;
-use serial_support::messages::*;
+use serialport as sp;
 
+use serial_support::messages::*;
+use serial_support::common::*;
 
 fn main() {
 
-    // Parse cmdline args
+    // Init logger
+    env_logger::init();
+
+    let spSettings = sp::SerialPortSettings {
+        baud_rate: sp::BaudRate::Baud115200,
+        data_bits: sp::DataBits::Eight,
+        flow_control: sp::FlowControl::None,
+        parity: sp::Parity::None,
+        stop_bits: sp::StopBits::One,
+        timeout: Duration::from_millis(1),
+    };
+
+
+    // let sr = SerialResponse::Response {
+    //     data: "HEY YOU".to_string(),
+    //     base64: None,
+    // };
+    // info!("serialized = {}", serde_json::to_string(&sr).unwrap());
+
+    // Default port number
     let mut port = 8080;
-
-    // let sr = SerialResponse::Response{data:"HEY YOU".to_string(), base64:None};
-    // println!("serialized = {}", serde_json::to_string(&sr).unwrap());
-
+    // Parse cmdline args
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("Provide access to serial ports over JSON Websockets");
@@ -46,7 +70,7 @@ fn main() {
         response.end().unwrap();
     };
 
-    println!("Using ports {} {}", port, port + 1);
+    info!("Using ports {} {}", port, port + 1);
 
     // Start listening for http connections
     thread::spawn(move || {
@@ -74,7 +98,7 @@ fn main() {
 
             let ip = client.peer_addr().unwrap();
 
-            println!("Connection from {}", ip);
+            info!("Connection from {}", ip);
 
             let message = Message::text("Hello".to_string());
             client.send_message(&message).unwrap();
@@ -89,23 +113,27 @@ fn main() {
                         let message = Message::close();
                         sender
                             .send_message(&message)
-                            .unwrap_or_else(|_| println!("Client {} hung up!", ip));
-                        println!("Client {} disconnected", ip);
+                            .unwrap_or_else(|_| info!("Client {} hung up!", ip));
+                        info!("Client {} disconnected", ip);
                         return;
                     }
                     Type::Ping => {
                         let message = Message::pong(message.payload);
                         sender
                             .send_message(&message)
-                            .unwrap_or_else(|_| println!("Could not ping client {}!", ip));
+                            .unwrap_or_else(|_| info!("Could not ping client {}!", ip));
                     }
                     _ => {
+                        let msg = String::from_utf8_lossy(&message.payload);
+                        // Unwrap to error;
+                        let serialReq: SerialRequest = serde_json::from_str(&msg).unwrap();
+
                         sender
                             .send_message(&message)
                             .unwrap_or_else(|_| {
-                                                println!("Could send message {} to client {}",
-                                                         String::from_utf8_lossy(&message.payload),
-                                                         ip)
+                                                info!("Could send message {} to client {}",
+                                                      String::from_utf8_lossy(&message.payload),
+                                                      ip)
                                             })
                     }
                 }
@@ -114,3 +142,27 @@ fn main() {
     }
 }
 
+
+
+fn handle_serial_req(req: SerialRequest) {
+    match req {
+        SerialRequest::Open { port, req_id } => {}
+        SerialRequest::Write {
+            handle,
+            port,
+            data,
+            base64,
+            req_id,
+        } => {}
+        SerialRequest::WriteLock {
+            handle,
+            port,
+            req_id,
+        } => {}
+        SerialRequest::ReleaseWriteLock {
+            handle,
+            port,
+            req_id,
+        } => {}
+    }
+}
