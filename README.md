@@ -19,3 +19,26 @@ For having a few clients talk to a 3D printer, CNC machine, or other
 such use case, this is normally fine. 
 
 Once Websocket-rs moves to tokio, this limitation can be removed
+
+## Vscode-Rust setup
+
+If you are using the vscode rust plugin, here is an example of
+the settings I am using
+
+The rust.rls is the most important one.
+
+``` json
+// Place your settings in this file to overwrite the default settings
+{
+    "rust.rls": {
+        "executable": "rustup",
+        "args": [
+            "run",
+            "nightly",
+            "rls"
+        ]
+    },
+    "editor.formatOnSave": true,
+    "editor.fontFamily": "Fira Code"
+}
+```
