@@ -1,6 +1,10 @@
 # websocket-serial-server
 Connect to and read / write serial ports over websockets. In Rust
 
+**VERY VERY VERY ALPHA**
+
+**DOES NOT WORK YET**
+
 ## Dependencies
 
 ### Linux
