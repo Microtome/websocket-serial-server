@@ -1,4 +1,5 @@
 extern crate argparse;
+extern crate base64;
 extern crate env_logger;
 extern crate hyper;
 #[macro_use]
