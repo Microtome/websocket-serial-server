@@ -1,4 +1,3 @@
-extern crate serialport;
 
 use std::collections::HashMap;
 use std::num::Wrapping;
@@ -10,6 +9,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use serialport as sp;
+use base64;
 
 use serial_support::common::*;
 use serial_support::messages::*;
@@ -18,24 +18,24 @@ use serial_support::messages::*;
 /// that accepts weak refs of Senders of Serial Reponses
 /// This is how the manager will communicate
 /// results back to the websockets
-type SubscReceiver = Receiver<Weak<Sender<SerialResponse>>>;
+type SubscReceiver = Receiver<Sender<SerialResponse>>;
 
 /// Struct for containing Port information
-pub struct OpenPort<'a> {
+pub struct open_port<'a> {
   /// The opened serial port
-  port: &'a mut sp::SerialPort,
+  port: &'a sp::SerialPort,
   /// Handle that controls writes to port
   write_handle: String,
   /// Send channel used to send responses to
   /// all clients who opened the port
-  clients: &'a mut Vec<Sender<SerialResponse>>,
+  clients: &'a Vec<Sender<SerialResponse>>,
 }
 
 /// Manages tracking and reading/writing from serial
 /// ports
 struct SerialPortManager<'a> {
   /// Maintains list of ports
-  open_ports: HashMap<String, OpenPort<'a>>,
+  open_ports: &'a mut HashMap<String, open_port<'a>>,
   /// Receiver for serial requests
   receiver: Receiver<SerialRequest>,
   /// Receiver for response subscription requests
@@ -64,7 +64,7 @@ impl<'a> SerialPortManager<'a> {
 
   fn add_write_lock(&self, handle: String, port: String) {}
 
-  fn write_port(&self, handle: String, port: String, data: String, base64: Option<bool>) {}
+  fn write_port(&self, handle: String, port: String, data: String, base64: bool) {}
 
   fn close_port(&self, port: String) {}
 
@@ -80,7 +80,7 @@ impl<'a> SerialPortManager<'a> {
         port,
         data,
         base64,
-      } => self.write_port(handle, port, data, base64),
+      } => self.write_port(handle, port, data, base64.unwrap_or(false)),
       SerialRequest::Close { port } => self.close_port(port),
     }
   }
@@ -94,7 +94,7 @@ impl<'a> SerialPortManager<'a> {
   /// TODO Once this is working, refactor to avoid
   /// thread spinning?
   ///
-  fn run(&mut self) {
+  fn run(&self) {
 
     let mut shutdown = false;
     let sleep_dur = Duration::from_millis(50);
@@ -120,20 +120,42 @@ impl<'a> SerialPortManager<'a> {
         Ok(req) => self.handle_serial_request(req)
       }
 
+      /*
       // Check for new data on each port
-      for (portName, openPort) in self.open_ports.iter_mut() {
+      for port_name in self.open_ports.keys() {
+        let open_port = self.open_ports.get(port_name).unwrap();
         // If we have data, send it back
-        let bytes_read = openPort.port.read(serial_buf.as_mut_slice());
-        // Remove all dead weak references
-        // TODO SEND THE DATA
-        // openPort.clients.retain(|r| r.upgrade().is_some());
-        // for client in openPort.clients.iter_mut(){
-        //   match client.upgrade() {
-        //     Some(v) => {}
-        //     _ => {}
-        //   }
+        // Read needs to borrow &mut self, so wrap port in RC?
+        let result = match open_port.port.read(serial_buf.as_mut_slice()){
+          Ok(bytes_read) => {
+              let bytes = &serial_buf[0..bytes_read];
+              match String::from_utf8(bytes.to_vec()) {
+                Err(_)=>SerialResponse::Read{
+                  port:port_name.to_string(),
+                  data: base64::encode(bytes),
+                  base64: Some(true)
+                },
+                Ok(s) =>SerialResponse::Read{
+                  port:port_name.to_string(),
+                  data: s,
+                  base64: Some(false)
+                }
+              }
+            },
+          Err(_) => SerialResponse::Error{
+              kind: ErrorType::ReadError,
+              msg: "Error reading serial port '{}'".to_string(),
+              detail: None,
+              port: Some(port_name.to_string()),
+              handle:None
+            }
+        };
+        */
+        // open_port.clients.each
+        // for client in open_port.clients{
+        //   client.send(result.clone());
         // }
-      }
+      // }
 
       // Check for Subscribe requests
       match self.subsc_receiver.try_recv() {
