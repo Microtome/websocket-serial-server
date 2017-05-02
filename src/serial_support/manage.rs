@@ -1,6 +1,8 @@
 
 
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver, TryRecvError};
 use std::thread;
 use std::time::Duration;
@@ -14,39 +16,41 @@ use serial_support::messages::*;
 /// that accepts weak refs of Senders of Serial Reponses
 /// This is how the manager will communicate
 /// results back to the websockets
-type SubscReceiver = Receiver<Sender<SerialRequest>>;
+type SubscReceiver = Receiver<Sender<SerialResponse>>;
 
 /// Struct for containing Port information
-pub struct OpenPort<'a> {
-  /// The opened serial port
-  port: &'a mut sp::SerialPort,
+pub struct OpenPort {
   /// Handle that controls writes to port
-  write_handle: String
+  write_handle: String,
+  /// The opened serial port
+  /// SerialPort is not Sized, so it makes hashmap mad
+  /// and so we deal with these shennanigans
+  port: Rc<RefCell<sp::SerialPort>>,
 }
 
-pub struct Subscription<'a> {
+pub struct Subscription {
   /// Subscription
   subscriber: Sender<SerialResponse>,
   /// The ports it is subscribed to
-  ports: &'a mut Vec<String>,
+  ports: Vec<String>,
   /// Handle that controls writes to port
-  write_handle: String
+  write_handle: Option<String>,
 }
 
 /// Manages tracking and reading/writing from serial
 /// ports
-struct SerialPortManager<'a> {
-  /// Maintains list of ports
-  open_ports: &'a mut HashMap<String, OpenPort<'a>>,
+struct SerialPortManager {
   /// List of port names to subscribers
-  subscriptions: &'a mut Vec<Subscription<'a>>,
+  subscriptions: Vec<Subscription>,
   /// Receiver for serial requests
   receiver: Receiver<SerialRequest>,
   /// Receiver for response subscription requests
   subsc_receiver: SubscReceiver,
+  /// Maintains list of ports
+  open_ports: HashMap<String, OpenPort>,
 }
 
-impl<'a> SerialPortManager<'a> {
+impl SerialPortManager {
   fn open_port(&self, port: String) {
     // Check if port is already open
 
@@ -98,7 +102,7 @@ impl<'a> SerialPortManager<'a> {
   /// TODO Once this is working, refactor to avoid
   /// thread spinning?
   ///
-  fn run(self) {
+  fn run(&mut self) {
 
     let mut shutdown = false;
     // Check about 30 times a second
@@ -126,10 +130,13 @@ impl<'a> SerialPortManager<'a> {
       }
 
       // Check for new data on each port
-      for (port_name, open_port) in self.open_ports.iter_mut() {
+      for (port_name, open_port) in self.open_ports.iter() {
         // If we have data, send it back
         // Read needs to borrow &mut self, so wrap port in RC?
-        let result = match open_port.port.read(serial_buf.as_mut_slice()) {
+        let result = match open_port
+                .port
+                .borrow_mut()
+                .read(serial_buf.as_mut_slice()) {
           Ok(bytes_read) => {
             // We got some data
             let bytes = &serial_buf[0..bytes_read];
@@ -165,25 +172,25 @@ impl<'a> SerialPortManager<'a> {
         };
 
         // Send report, retain only live connections
-        
-          self.subscriptions.retain(|c| {
+        self
+          .subscriptions
+          .retain(|c| {
             // If its not the port we are currently interested in, we keep it
-            if !c.ports.contains(&port_name){
+            if !c.ports.contains(&port_name) {
               true
-            }else{
-            // Otherwise try and send on it, and if it fails
-            // remove the subscription
-            c.subscriber.send(result.clone())
-              .map(|_| true)
-              .map_err(|_| {
-                         warn!("Connection closed.");
-                         false
-                       })
-              .unwrap()
+            } else {
+              // Otherwise try and send on it, and if it fails
+              // remove the subscription
+              c.subscriber
+                .send(result.clone())
+                .map(|_| true)
+                .map_err(|_| {
+                           warn!("Connection closed.");
+                           false
+                         })
+                .unwrap()
             }
           });
-        
-        
       }
 
       // Check for Subscribe requests
@@ -201,20 +208,19 @@ impl<'a> SerialPortManager<'a> {
           }
         }
         Ok(sub) => {
-
-          // We got some new subscribe requests
-          // match sub {
-          //   SerialRequest::Open{port} => {}
-          //   SerialRequest::WriteLock{port, handle} => {}
-          //   SerialRequest::ReleaseWriteLock{handle, port} => {}
-          //   SerialRequest::Write{handle, port, data, base64} => {}
-          //   SerialRequest::Close{port} => {}
-          // }
+          self
+            .subscriptions
+            .push(Subscription {
+                    ports: Vec::with_capacity(4),
+                    subscriber: sub,
+                    write_handle: None,
+                  });
         }
       }
     }
   }
 }
+
 
 
 // TODO How to spawn and fire it up
