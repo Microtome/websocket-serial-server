@@ -16,12 +16,12 @@ use serial_support::messages::*;
 /// that accepts weak refs of Senders of Serial Reponses
 /// This is how the manager will communicate
 /// results back to the websockets
-type SubscReceiver = Receiver<Sender<SerialResponse>>;
+type SubscReceiver = Receiver<SubscriptionRequest>;
 
 /// Struct for containing Port information
 pub struct OpenPort {
   /// Handle that controls writes to port
-  write_handle: String,
+  write_lock_sub_id: String,
   /// The opened serial port
   /// SerialPort is not Sized, so it makes hashmap mad
   /// and so we deal with these shennanigans
@@ -33,8 +33,8 @@ pub struct Subscription {
   subscriber: Sender<SerialResponse>,
   /// The ports it is subscribed to
   ports: Vec<String>,
-  /// Handle that controls writes to port
-  write_handle: Option<String>,
+  /// Subscription id
+  sub_id: String,
 }
 
 /// Manages tracking and reading/writing from serial
@@ -51,7 +51,7 @@ struct SerialPortManager {
 }
 
 impl SerialPortManager {
-  fn open_port(&self, port: String) {
+  fn open_port(&self, sub_id: String, port: String) {
     // Check if port is already open
 
     // If not, open it
@@ -64,32 +64,42 @@ impl SerialPortManager {
       timeout: Duration::from_millis(1),
     };
 
+
+
   }
 
-  fn add_sender(&self, port: String, sender: Sender<SerialResponse>) {}
+  fn add_sender(&self, port: String, sender: Sender<SerialResponse>) {
 
-  fn release_write_lock(&self, handle: String, port: Option<String>) {}
+  }
 
-  fn add_write_lock(&self, handle: String, port: String) {}
+  fn create_write_lock(&self, sub_id: String, port: String) {
 
-  fn write_port(&self, handle: String, port: String, data: String, base64: bool) {}
+  }
 
-  fn close_port(&self, port: String) {}
+  fn release_write_lock(&self, sub_id: String, port: Option<String>) {
+
+  }
+
+  fn write_port(&self, sub_id: String, port: String, data: String, base64: bool) {
+
+  }
+
+  fn close_port(&self, sub_id: String, port: Option<String>) {}
 
   /// Handles and dispatches SerialRequest sent by
   /// the channel
   fn handle_serial_request(&self, msg: SerialRequest) {
     match msg {
-      SerialRequest::Open { port } => self.open_port(port),
-      SerialRequest::WriteLock { handle, port } => self.add_write_lock(handle, port),
-      SerialRequest::ReleaseWriteLock { handle, port } => self.release_write_lock(handle, port),
+      SerialRequest::Open { sub_id, port } => self.open_port(sub_id, port),
+      SerialRequest::WriteLock { sub_id, port } => self.add_write_lock(sub_id, port),
+      SerialRequest::ReleaseWriteLock { sub_id, port } => self.release_write_lock(sub_id, port),
       SerialRequest::Write {
-        handle,
+        sub_id,
         port,
         data,
         base64,
-      } => self.write_port(handle, port, data, base64.unwrap_or(false)),
-      SerialRequest::Close { port } => self.close_port(port),
+      } => self.write_port(sub_id, port, data, base64.unwrap_or(false)),
+      SerialRequest::Close { sub_id, port } => self.close_port(sub_id, port),
     }
   }
 
@@ -166,7 +176,7 @@ impl SerialPortManager {
               msg: "Error reading serial port '{}'".to_string(),
               detail: None,
               port: Some(port_name.to_string()),
-              handle: None,
+              sub_id: None,
             }
           }
         };
@@ -207,13 +217,13 @@ impl SerialPortManager {
             }
           }
         }
-        Ok(sub) => {
+        Ok(subReq) => {
           self
             .subscriptions
             .push(Subscription {
                     ports: Vec::with_capacity(4),
-                    subscriber: sub,
-                    write_handle: None,
+                    subscriber: subReq.subscriber,
+                    sub_id: subReq.sub_id,
                   });
         }
       }
