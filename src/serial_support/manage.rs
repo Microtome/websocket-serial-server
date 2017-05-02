@@ -1,41 +1,37 @@
 
+
 use std::collections::HashMap;
-use std::num::Wrapping;
-use std::rc::Weak;
 use std::sync::mpsc::{Sender, Receiver, TryRecvError};
-use std::sync::mpsc;
 use std::thread;
-use std::thread::JoinHandle;
 use std::time::Duration;
 
 use serialport as sp;
 use base64;
 
-use serial_support::common::*;
 use serial_support::messages::*;
 
 /// Convenience type for a listener
 /// that accepts weak refs of Senders of Serial Reponses
 /// This is how the manager will communicate
 /// results back to the websockets
-type SubscReceiver = Receiver<Sender<SerialResponse>>;
+type SubscReceiver = Receiver<Sender<SerialRequest>>;
 
 /// Struct for containing Port information
-pub struct open_port<'a> {
+pub struct OpenPort<'a> {
   /// The opened serial port
-  port: &'a sp::SerialPort,
+  port: &'a mut sp::SerialPort,
   /// Handle that controls writes to port
   write_handle: String,
   /// Send channel used to send responses to
   /// all clients who opened the port
-  clients: &'a Vec<Sender<SerialResponse>>,
+  clients: &'a mut Vec<Sender<SerialResponse>>,
 }
 
 /// Manages tracking and reading/writing from serial
 /// ports
 struct SerialPortManager<'a> {
   /// Maintains list of ports
-  open_ports: &'a mut HashMap<String, open_port<'a>>,
+  open_ports: &'a mut HashMap<String, OpenPort<'a>>,
   /// Receiver for serial requests
   receiver: Receiver<SerialRequest>,
   /// Receiver for response subscription requests
@@ -47,7 +43,7 @@ impl<'a> SerialPortManager<'a> {
     // Check if port is already open
 
     // If not, open it
-    let spSettings = sp::SerialPortSettings {
+    let sp_settings = sp::SerialPortSettings {
       baud_rate: sp::BaudRate::Baud115200,
       data_bits: sp::DataBits::Eight,
       flow_control: sp::FlowControl::None,
@@ -68,7 +64,7 @@ impl<'a> SerialPortManager<'a> {
 
   fn close_port(&self, port: String) {}
 
-  /// Handles and dispatches SerialRequest sent by 
+  /// Handles and dispatches SerialRequest sent by
   /// the channel
   fn handle_serial_request(&self, msg: SerialRequest) {
     match msg {
@@ -94,10 +90,11 @@ impl<'a> SerialPortManager<'a> {
   /// TODO Once this is working, refactor to avoid
   /// thread spinning?
   ///
-  fn run(&self) {
+  fn run(self) {
 
     let mut shutdown = false;
-    let sleep_dur = Duration::from_millis(50);
+    // Check about 30 times a second
+    let sleep_dur = Duration::from_millis(33);
     let mut serial_buf: Vec<u8> = vec![0; 4096];
 
     while !shutdown {
@@ -105,7 +102,7 @@ impl<'a> SerialPortManager<'a> {
       thread::sleep(sleep_dur);
 
       // Handle serial operation requests
-      match self.receiver.try_recv(){
+      match self.receiver.try_recv() {
         Err(e) => {
           match e {
             TryRecvError::Empty => {
@@ -117,45 +114,61 @@ impl<'a> SerialPortManager<'a> {
             }
           }
         }
-        Ok(req) => self.handle_serial_request(req)
+        Ok(req) => self.handle_serial_request(req),
       }
 
-      /*
       // Check for new data on each port
-      for port_name in self.open_ports.keys() {
-        let open_port = self.open_ports.get(port_name).unwrap();
+      for (port_name, open_port) in self.open_ports.iter_mut() {
         // If we have data, send it back
         // Read needs to borrow &mut self, so wrap port in RC?
-        let result = match open_port.port.read(serial_buf.as_mut_slice()){
+        let result = match open_port.port.read(serial_buf.as_mut_slice()) {
           Ok(bytes_read) => {
-              let bytes = &serial_buf[0..bytes_read];
-              match String::from_utf8(bytes.to_vec()) {
-                Err(_)=>SerialResponse::Read{
-                  port:port_name.to_string(),
+            // We got some data
+            let bytes = &serial_buf[0..bytes_read];
+            // Try and parse the bytes as utf-8
+            match String::from_utf8(bytes.to_vec()) {
+              // We need to send as binary
+              Err(_) => {
+                SerialResponse::Read {
+                  port: port_name.to_string(),
                   data: base64::encode(bytes),
-                  base64: Some(true)
-                },
-                Ok(s) =>SerialResponse::Read{
-                  port:port_name.to_string(),
-                  data: s,
-                  base64: Some(false)
+                  base64: Some(true),
                 }
               }
-            },
-          Err(_) => SerialResponse::Error{
+              Ok(s) => {
+                SerialResponse::Read {
+                  port: port_name.to_string(),
+                  data: s,
+                  base64: Some(false),
+                }
+              }
+            }
+          }
+          Err(_) => {
+            // We failed to read the port, send error
+            SerialResponse::Error {
               kind: ErrorType::ReadError,
               msg: "Error reading serial port '{}'".to_string(),
               detail: None,
               port: Some(port_name.to_string()),
-              handle:None
+              handle: None,
             }
+          }
         };
-        */
-        // open_port.clients.each
-        // for client in open_port.clients{
-        //   client.send(result.clone());
-        // }
-      // }
+
+        // Send report, retain only live connections
+        open_port
+          .clients
+          .retain(|c| {
+            c.send(result.clone())
+              .map(|_| true)
+              .map_err(|_| {
+                         warn!("Connection closed.");
+                         false
+                       })
+              .unwrap()
+          });
+      }
 
       // Check for Subscribe requests
       match self.subsc_receiver.try_recv() {
@@ -171,8 +184,16 @@ impl<'a> SerialPortManager<'a> {
             }
           }
         }
-        Ok(subs) => {
-
+        Ok(sub) => {
+          
+          // We got some new subscribe requests
+          // match sub {
+          //   SerialRequest::Open{port} => {}
+          //   SerialRequest::WriteLock{port, handle} => {}
+          //   SerialRequest::ReleaseWriteLock{handle, port} => {}
+          //   SerialRequest::Write{handle, port, data, base64} => {}
+          //   SerialRequest::Close{port} => {}
+          // }
         }
       }
     }
