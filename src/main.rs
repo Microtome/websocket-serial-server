@@ -126,7 +126,7 @@ fn main() {
                 msg: "Unable to parse json".to_string(),
                 detail: Some(msg.to_string()),
                 port: None,
-                handle: None,
+                sub_id: None,
               }
             };
 
@@ -150,22 +150,5 @@ fn main() {
         }
       }
     });
-  }
-}
-
-
-
-fn handle_serial_req(req: SerialRequest) {
-  match req {
-    SerialRequest::Open { port } => {}
-    SerialRequest::Write {
-      handle,
-      port,
-      data,
-      base64,
-    } => {}
-    SerialRequest::WriteLock { handle, port } => {}
-    SerialRequest::ReleaseWriteLock { handle, port } => {}
-    SerialRequest::Close { port } => {}
   }
 }
