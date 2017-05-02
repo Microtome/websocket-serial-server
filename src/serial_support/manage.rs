@@ -21,10 +21,16 @@ pub struct OpenPort<'a> {
   /// The opened serial port
   port: &'a mut sp::SerialPort,
   /// Handle that controls writes to port
-  write_handle: String,
-  /// Send channel used to send responses to
-  /// all clients who opened the port
-  clients: &'a mut Vec<Sender<SerialResponse>>,
+  write_handle: String
+}
+
+pub struct Subscription<'a> {
+  /// Subscription
+  subscriber: Sender<SerialResponse>,
+  /// The ports it is subscribed to
+  ports: &'a mut Vec<String>,
+  /// Handle that controls writes to port
+  write_handle: String
 }
 
 /// Manages tracking and reading/writing from serial
@@ -32,6 +38,8 @@ pub struct OpenPort<'a> {
 struct SerialPortManager<'a> {
   /// Maintains list of ports
   open_ports: &'a mut HashMap<String, OpenPort<'a>>,
+  /// List of port names to subscribers
+  subscriptions: &'a mut Vec<Subscription<'a>>,
   /// Receiver for serial requests
   receiver: Receiver<SerialRequest>,
   /// Receiver for response subscription requests
@@ -157,17 +165,25 @@ impl<'a> SerialPortManager<'a> {
         };
 
         // Send report, retain only live connections
-        open_port
-          .clients
-          .retain(|c| {
-            c.send(result.clone())
+        
+          self.subscriptions.retain(|c| {
+            // If its not the port we are currently interested in, we keep it
+            if !c.ports.contains(&port_name){
+              true
+            }else{
+            // Otherwise try and send on it, and if it fails
+            // remove the subscription
+            c.subscriber.send(result.clone())
               .map(|_| true)
               .map_err(|_| {
                          warn!("Connection closed.");
                          false
                        })
               .unwrap()
+            }
           });
+        
+        
       }
 
       // Check for Subscribe requests
@@ -185,7 +201,7 @@ impl<'a> SerialPortManager<'a> {
           }
         }
         Ok(sub) => {
-          
+
           // We got some new subscribe requests
           // match sub {
           //   SerialRequest::Open{port} => {}
