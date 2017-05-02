@@ -21,13 +21,14 @@ type SubscReceiver = Receiver<SubscriptionRequest>;
 /// Struct for containing Port information
 pub struct OpenPort {
   /// Handle that controls writes to port
-  write_lock_sub_id: String,
+  write_lock_sub_id: Option<String>,
   /// The opened serial port
   /// SerialPort is not Sized, so it makes hashmap mad
   /// and so we deal with these shennanigans
-  port: Rc<RefCell<sp::SerialPort>>,
+  port: RefCell<Box<sp::SerialPort>>,
 }
 
+/// Subscription
 pub struct Subscription {
   /// Subscription
   subscriber: Sender<SerialResponse>,
@@ -39,20 +40,56 @@ pub struct Subscription {
 
 /// Manages tracking and reading/writing from serial
 /// ports
+///
+/// TODO efficiency can be improved through choice of better
+/// data structures though looping through a short list
+/// is probably faster than hashing...
 struct SerialPortManager {
-  /// List of port names to subscribers
-  subscriptions: Vec<Subscription>,
   /// Receiver for serial requests
   receiver: Receiver<SerialRequest>,
   /// Receiver for response subscription requests
   subsc_receiver: SubscReceiver,
+  /// List of port names to subscribers
+  subscriptions: Vec<Subscription>,
   /// Maintains list of ports
   open_ports: HashMap<String, OpenPort>,
 }
 
 impl SerialPortManager {
-  fn open_port(&self, sub_id: String, port: String) {
-    // Check if port is already open
+
+  /// Try and get the subscription for sub_id
+  /// If unsuccessful, return a Err<SerialResponse::Error>
+  fn get_subscription(&mut self, sub_id: String) -> Result<&Subscription, SerialResponse> {
+    match self.subscriptions.iter().find(|&s| s.sub_id == sub_id ){
+      None => Err(SerialResponse::Error{
+        kind: ErrorType::PortNotFound,
+        msg: format!("Could not find subscription for '{}'", sub_id),
+        detail: None,
+        port: None,
+        sub_id: Some(sub_id)
+      }),
+      Some(sub) => Ok(sub)
+    }
+  }
+
+  /// Try and get the serial port
+  /// If unsuccessful, return a Err<SerialResponse::Error>
+  fn get_port(&mut self, port:String, sub_id: Option<String>) -> Result<&OpenPort,SerialResponse>{
+    match self.open_ports.get(&port){
+      None => Err(SerialResponse::Error{
+        kind: ErrorType::PortNotFound,
+        msg: format!("Could not find open serial port for '{}'", port),
+        detail: None,
+        port: Some(port),
+        sub_id: sub_id
+      }),
+      Some(sp) => Ok(sp)
+    }
+  }
+
+  /// Open the given port.
+  /// If the port is already open, then just subscribe to it
+  fn open_port(&mut self, sub_id: String, port: String) {
 
     // If not, open it
     let sp_settings = sp::SerialPortSettings {
@@ -64,34 +101,92 @@ impl SerialPortManager {
       timeout: Duration::from_millis(1),
     };
 
+    // match self.subscriptions.iter().position(|s| s.sub_id == sub_id){
+    //   // We don't even know who to send an error to...
+    //   None => warn!("No subscription found for sub_id {}",sub_id),
+    //   Some(idx) => {
+    //     let sub = &mut self.subscriptions[idx];
+    //     let serial_port = match self.open_ports.get(&port){
+    //       None => { 
+    //         let sp = sp::open_with_settings(&port, &sp_settings);
+    //         self.open_ports.insert(port, sp);
+    //         return 
+    //       }
+    //       Some(sp) => Ok(sp.port.borrow_mut())
+    //     };
 
+    //   }
+    // }
+
+    // match self.open_ports.get(&port) {
+    //   case Some(serial_port) => {
+
+    //   },
+    //   case None => {
+
+    //   }
+    // }
 
   }
 
-  fn add_sender(&self, port: String, sender: Sender<SerialResponse>) {
+  // fn add_sender(&self, port: String, sender: Sender<SerialResponse>) {}
+
+  fn set_write_lock(&self, sub_id: String, port: String) {
 
   }
 
-  fn create_write_lock(&self, sub_id: String, port: String) {
+  fn release_write_lock(&self, sub_id: String, port: Option<String>) {}
 
+  fn write_port(&mut self, sub_id: String, port: String, data: String, base64: bool) {
+    // get port
+
+    // check sub_id matches write_lock id
+
+    // If it does, try and write
+
+    // Else send a write lock error
   }
 
-  fn release_write_lock(&self, sub_id: String, port: Option<String>) {
-
+  /// Send a response to a subscription with the id sub_id
+  fn send_response(&mut self, sub_id: String, response: SerialResponse) {
+    match self.subscriptions.iter().position(|s| s.sub_id == sub_id){
+      Some(idx) => {
+        match self.subscriptions[idx].subscriber.send(response.clone()){
+          Ok(_) => debug!("Sucessfully sent {:?} to {}",response.clone(), sub_id),
+          Err(_) => {
+            debug!("Remote end for sub_id {} closed, removing", sub_id);
+            self.subscriptions.remove(idx);
+          }
+        }
+      }
+      None => warn!("No subscription found for sub_id '{}'",sub_id)
+    }
   }
 
-  fn write_port(&self, sub_id: String, port: String, data: String, base64: bool) {
-
+  /// Broadcast a response to all subscriptions
+  fn broadcast(&mut self, response: SerialResponse) {
+    self
+      .subscriptions
+      .retain(|sub| {
+        sub
+          .subscriber
+          .send(response.clone())
+          .map(|_| true)
+          .unwrap_or_else(|_| {
+                     warn!("Connection closed.");
+                     false
+                   })
+      });
   }
 
   fn close_port(&self, sub_id: String, port: Option<String>) {}
 
   /// Handles and dispatches SerialRequest sent by
   /// the channel
-  fn handle_serial_request(&self, msg: SerialRequest) {
+  fn handle_serial_request(&mut self, msg: SerialRequest) {
     match msg {
       SerialRequest::Open { sub_id, port } => self.open_port(sub_id, port),
-      SerialRequest::WriteLock { sub_id, port } => self.add_write_lock(sub_id, port),
+      SerialRequest::WriteLock { sub_id, port } => self.set_write_lock(sub_id, port),
       SerialRequest::ReleaseWriteLock { sub_id, port } => self.release_write_lock(sub_id, port),
       SerialRequest::Write {
         sub_id,
@@ -194,11 +289,10 @@ impl SerialPortManager {
               c.subscriber
                 .send(result.clone())
                 .map(|_| true)
-                .map_err(|_| {
+                .unwrap_or_else(|_| {
                            warn!("Connection closed.");
                            false
                          })
-                .unwrap()
             }
           });
       }
@@ -217,13 +311,13 @@ impl SerialPortManager {
             }
           }
         }
-        Ok(subReq) => {
+        Ok(sub_req) => {
           self
             .subscriptions
             .push(Subscription {
                     ports: Vec::with_capacity(4),
-                    subscriber: subReq.subscriber,
-                    sub_id: subReq.sub_id,
+                    subscriber: sub_req.subscriber,
+                    sub_id: sub_req.sub_id,
                   });
         }
       }
