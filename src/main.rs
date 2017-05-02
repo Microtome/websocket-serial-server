@@ -14,7 +14,6 @@ mod serial_support;
 
 use std::thread;
 use std::io::Write;
-use std::collections::HashMap;
 
 use argparse::{ArgumentParser, Store};
 use websocket::{Server, Message};
@@ -25,7 +24,6 @@ use hyper::server::request::Request;
 use hyper::server::response::Response;
 
 use serial_support::messages::*;
-use serial_support::manage::*;
 
 fn main() {
 
