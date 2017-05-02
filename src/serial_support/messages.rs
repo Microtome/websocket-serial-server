@@ -36,6 +36,10 @@ pub enum SerialRequest {
 /// that can be returned
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ErrorType {
+  /// Port not found
+  PortNotFound,
+  /// Subscription Id not found
+  SubscriptionNotFound,
   /// Failed to parse message
   JsonParseFailure,
   /// Unknown request
@@ -72,3 +76,9 @@ pub enum SerialResponse {
   /// Ok response showing that command was accepted
   Accepted { request: SerialRequest },
 }
+
+// #[derive(Serialize, Deserialize, Clone, Debug)]
+// enum SerialResponseError{
+//   UnknownRequest,
+//   PortNotFound()
+// }
