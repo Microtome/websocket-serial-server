@@ -2,7 +2,6 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver, TryRecvError};
 use std::thread;
 use std::time::Duration;
@@ -10,6 +9,7 @@ use std::time::Duration;
 use serialport as sp;
 use base64;
 
+use serial_support::errors::*;
 use serial_support::messages::*;
 
 /// Convenience type for a listener
@@ -62,12 +62,9 @@ impl SerialPortManager {
   fn get_subscription(&mut self, sub_id: String) -> Result<&Subscription, SerialResponse> {
     match self.subscriptions.iter().find(|&s| s.sub_id == sub_id ){
       None => Err(SerialResponse::Error{
-        kind: ErrorType::PortNotFound,
-        msg: format!("Could not find subscription for '{}'", sub_id),
-        detail: None,
-        port: None,
-        sub_id: Some(sub_id)
-      }),
+        err: SerialResponseError::SubscriptionNotFound{
+        sub_id: sub_id,
+        msg: "Could not find subscription".to_string()}}),
       Some(sub) => Ok(sub)
     }
   }
@@ -77,12 +74,9 @@ impl SerialPortManager {
   fn get_port(&mut self, port:String, sub_id: Option<String>) -> Result<&OpenPort,SerialResponse>{
     match self.open_ports.get(&port){
       None => Err(SerialResponse::Error{
-        kind: ErrorType::PortNotFound,
+        err: SerialResponseError::PortNotFound{
         msg: format!("Could not find open serial port for '{}'", port),
-        detail: None,
-        port: Some(port),
-        sub_id: sub_id
-      }),
+        port: port}}),
       Some(sp) => Ok(sp)
     }
   }
@@ -100,6 +94,8 @@ impl SerialPortManager {
       stop_bits: sp::StopBits::One,
       timeout: Duration::from_millis(1),
     };
+
+    // self.get_subscription(sub_id)?.
 
     // match self.subscriptions.iter().position(|s| s.sub_id == sub_id){
     //   // We don't even know who to send an error to...
@@ -266,13 +262,10 @@ impl SerialPortManager {
           }
           Err(_) => {
             // We failed to read the port, send error
-            SerialResponse::Error {
-              kind: ErrorType::ReadError,
+            SerialResponse::Error { err:SerialResponseError::ReadError{
               msg: "Error reading serial port '{}'".to_string(),
-              detail: None,
-              port: Some(port_name.to_string()),
-              sub_id: None,
-            }
+              port: port_name.to_string(),
+            }}
           }
         };
 

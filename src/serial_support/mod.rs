@@ -5,3 +5,4 @@
 pub mod manage;
 pub mod messages;
 pub mod common;
+pub mod errors;

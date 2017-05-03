@@ -1,6 +1,12 @@
+// `error_chain!` can recurse deeply
+#![recursion_limit = "1024"]
+
+
 extern crate argparse;
 extern crate base64;
 extern crate env_logger;
+#[macro_use]
+extern crate error_chain;
 extern crate hyper;
 #[macro_use]
 extern crate log;
@@ -24,6 +30,7 @@ use hyper::server::request::Request;
 use hyper::server::response::Response;
 
 use serial_support::messages::*;
+use serial_support::errors::*;
 
 fn main() {
 
@@ -121,13 +128,11 @@ fn main() {
             // Function to remap Json Deserizilation error
             // to a SerialResponse:Error
             let remap_error = |_| -> SerialResponse {
-              SerialResponse::Error {
-                kind: ErrorType::JsonParseFailure,
+              SerialResponse::Error { err:{ SerialResponseError::JsonParseError{
                 msg: "Unable to parse json".to_string(),
-                detail: Some(msg.to_string()),
-                port: None,
-                sub_id: None,
-              }
+                bad_json: msg.to_string()
+              }}
+            }
             };
 
             // So we will get a result <SerialRequest::*,SerialResponse::Error> back

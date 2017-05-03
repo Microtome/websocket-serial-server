@@ -1,6 +1,7 @@
 extern crate serde_json;
 
 use std::sync::mpsc::{Sender};
+use serial_support::errors::SerialResponseError;
 
 pub struct SubscriptionRequest {
   pub sub_id: String,
@@ -59,11 +60,7 @@ pub enum ErrorType {
 pub enum SerialResponse {
   /// Error response
   Error {
-    kind: ErrorType,
-    msg: String,
-    detail: Option<String>,
-    port: Option<String>,
-    sub_id: Option<String>,
+    err: SerialResponseError
   },
   /// Data that was read from port
   Read {
@@ -76,9 +73,3 @@ pub enum SerialResponse {
   /// Ok response showing that command was accepted
   Accepted { request: SerialRequest },
 }
-
-// #[derive(Serialize, Deserialize, Clone, Debug)]
-// enum SerialResponseError{
-//   UnknownRequest,
-//   PortNotFound()
-// }
