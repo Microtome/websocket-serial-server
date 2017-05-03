@@ -5,6 +5,7 @@ error_chain! {
   foreign_links {
     Fmt(::std::fmt::Error);
     Io(::std::io::Error) #[cfg(unix)];
+    SerialportError(::serialport::Error) #[cfg(unix)];
     Utf8Error(::std::string::FromUtf8Error);
     JsonError(::serde_json::error::Error);
   }
@@ -14,11 +15,11 @@ error_chain! {
       description("Unknown request")
       display("Unknown request,")
     }
-    OpenPortNotFound(port: String){
+    OpenPortNotFound(port:String){
       description("Open serial port not found")
       display("Serial port '{}' not found, try opening it first", port)
     }
-    SubscriptionNotFound(sub_id: String){
+    SubscriptionNotFound(sub_id:String){
       description("Subscription not found")
       display("Subscription for id '{}' not found", sub_id)
     }

@@ -126,7 +126,7 @@ fn main() {
             let msg = String::from_utf8_lossy(&message.payload);
 
             // So we will get a result <SerialRequest::*,SerialResponse::Error> back
-            let res: Result<SerialRequest, e::Error> = serde_json::from_str(&msg).map_err(|e|e::ErrorKind::JsonError(e).into());
+            let res: Result<SerialRequest, e::Error> = serde_json::from_str(&msg).map_err(|err|e::ErrorKind::JsonError(err).into());
 
             let reply = match res {
               Ok(req) => Message::text(serde_json::to_string(&req).unwrap()),

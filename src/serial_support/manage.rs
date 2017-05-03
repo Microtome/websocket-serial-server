@@ -58,35 +58,78 @@ struct SerialPortManager {
 impl SerialPortManager {
   /// Try and get the subscription for sub_id
   /// If unsuccessful, return a Err<ErrorKind::SubscriptionNotFound>
-  fn get_subscription(&mut self, sub_id: String) -> Result<&Subscription> {
-    match self.subscriptions.iter().find(|&s| s.sub_id == sub_id) {
-      None => Err(ErrorKind::SubscriptionNotFound(sub_id).into()),
-      Some(sub) => Ok(sub),
+  fn get_subscription(&mut self, sub_id: & String) -> Result<&mut Subscription> {
+    match self.subscriptions.iter_mut().find(|s| & s.sub_id == sub_id) {
+      None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
+      Some(sub) => Ok(sub)
     }
   }
 
   /// Try and get the serial port
   /// If unsuccessful, return a Err<ErrorKind::OpenPortNotFound>
-  fn get_port(&mut self, port: String, sub_id: Option<String>) -> Result<&OpenPort> {
-    match self.open_ports.get(&port) {
-      None => Err(ErrorKind::OpenPortNotFound(port).into()),
-      Some(sp) => Ok(sp),
+  fn get_port(&mut self, port: &String) -> Result<&mut OpenPort> {
+    match self.open_ports.get_mut(port) {
+      None => Err(ErrorKind::OpenPortNotFound(port.to_string()).into()),
+      Some(sp) => Ok(sp)
     }
   }
 
   /// Open the given port.
   /// If the port is already open, then just subscribe to it
-  fn open_port(&mut self, sub_id: String, port: String) {
+  fn open_port(&mut self, sub_id: & String, port_name:& String) -> Result<SerialResponse>  {
 
-    // If not, open it
-    let sp_settings = sp::SerialPortSettings {
-      baud_rate: sp::BaudRate::Baud115200,
-      data_bits: sp::DataBits::Eight,
-      flow_control: sp::FlowControl::None,
-      parity: sp::Parity::None,
-      stop_bits: sp::StopBits::One,
-      timeout: Duration::from_millis(1),
+
+    fn open_serial_port(port:& String) -> Result<Box<sp::SerialPort>>{
+      // If not, open it
+      let sp_settings = sp::SerialPortSettings {
+        baud_rate: sp::BaudRate::Baud115200,
+        data_bits: sp::DataBits::Eight,
+        flow_control: sp::FlowControl::None,
+        parity: sp::Parity::None,
+        stop_bits: sp::StopBits::One,
+        timeout: Duration::from_millis(1),
+      };
+      sp::open_with_settings(&port, &sp_settings).map_err(|err|ErrorKind::SerialportError(err).into())
     };
+
+    let port_res = self.get_port(port_name)?;
+
+
+    // let port = match port_res{
+    //   Ok(p) => p,
+    //   Err(_) => {
+        let op = OpenPort{write_lock_sub_id: None, port:RefCell::new(port_res)};
+        self.open_ports.insert(port_name.to_string(), op);
+        // &mut op
+    //   }
+    // };
+
+    let sub = self.get_subscription(sub_id)?;
+
+    let mut sp = try!(open_serial_port(port_name));
+
+
+    // let port = self.get_port(port_name).unwrap_or_else(|_|{
+    //     let op = OpenPort{write_lock_sub_id: None, port:RefCell::new(sp)};
+    //     self.open_ports.insert(port_name.to_string(), op);
+    //     &mut op
+    //   });
+    
+    match sub.ports.iter().position(|p| p == port_name) {
+      None => {sub.ports.push(port_name.to_string())}
+      _ => {debug!("Port '{}' already subscribed by sub '{}' ", port_name, sub_id)}
+    };
+    
+    Ok(SerialResponse::Opened{
+      port: port_name.to_string()
+    })
+
+    // if subscription.ports.contains(port){
+    //   return 
+    // }
+
+    // self.get_port(port)?.map_error()
+
 
     // self.get_subscription(sub_id)?.
 
@@ -174,18 +217,18 @@ impl SerialPortManager {
   /// Handles and dispatches SerialRequest sent by
   /// the channel
   fn handle_serial_request(&mut self, msg: SerialRequest) {
-    match msg {
-      SerialRequest::Open { sub_id, port } => self.open_port(sub_id, port),
-      SerialRequest::WriteLock { sub_id, port } => self.set_write_lock(sub_id, port),
-      SerialRequest::ReleaseWriteLock { sub_id, port } => self.release_write_lock(sub_id, port),
-      SerialRequest::Write {
-        sub_id,
-        port,
-        data,
-        base64,
-      } => self.write_port(sub_id, port, data, base64.unwrap_or(false)),
-      SerialRequest::Close { sub_id, port } => self.close_port(sub_id, port),
-    }
+    // match msg {
+    //   SerialRequest::Open { sub_id, port } => self.open_port(sub_id, port),
+    //   SerialRequest::WriteLock { sub_id, port } => self.set_write_lock(sub_id, port),
+    //   SerialRequest::ReleaseWriteLock { sub_id, port } => self.release_write_lock(sub_id, port),
+    //   SerialRequest::Write {
+    //     sub_id,
+    //     port,
+    //     data,
+    //     base64,
+    //   } => self.write_port(sub_id, port, data, base64.unwrap_or(false)),
+    //   SerialRequest::Close { sub_id, port } => self.close_port(sub_id, port),
+    // }
   }
 
   /// Fire up the port manager

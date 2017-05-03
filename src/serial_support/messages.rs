@@ -71,6 +71,8 @@ pub enum SerialResponse {
   },
   /// Port was closed
   Closed { port: String },
+  /// Port was closed
+  Opened { port: String },
   /// Ok response showing that command was accepted
   Accepted { request: SerialRequest },
 }
