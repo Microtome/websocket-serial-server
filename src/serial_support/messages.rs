@@ -1,7 +1,7 @@
 extern crate serde_json;
 
 use std::sync::mpsc::{Sender};
-use serial_support::errors::SerialResponseError;
+// use serial_support::errors::SerialResponseError;
 
 pub struct SubscriptionRequest {
   pub sub_id: String,
@@ -60,7 +60,8 @@ pub enum ErrorType {
 pub enum SerialResponse {
   /// Error response
   Error {
-    err: SerialResponseError
+    description: String,
+    display: String
   },
   /// Data that was read from port
   Read {

@@ -30,7 +30,7 @@ use hyper::server::request::Request;
 use hyper::server::response::Response;
 
 use serial_support::messages::*;
-use serial_support::errors::*;
+use serial_support::errors as e;
 
 fn main() {
 
@@ -110,7 +110,7 @@ fn main() {
               .send_message(&message)
               .unwrap_or_else(|_| info!("Client {} hung up!", ip));
             info!("Client {} disconnected", ip);
-            return;
+            
           }
 
           Type::Ping => {
@@ -125,35 +125,24 @@ fn main() {
             // Get the payload, in a lossy manner
             let msg = String::from_utf8_lossy(&message.payload);
 
-            // Function to remap Json Deserizilation error
-            // to a SerialResponse:Error
-            let remap_error = |_| -> SerialResponse {
-              SerialResponse::Error { err:{ SerialResponseError::JsonParseError{
-                msg: "Unable to parse json".to_string(),
-                bad_json: msg.to_string()
-              }}
-            }
-            };
-
             // So we will get a result <SerialRequest::*,SerialResponse::Error> back
-            let res: Result<SerialRequest, SerialResponse> = serde_json::from_str(&msg)
-              .map_err(remap_error);
+            let res: Result<SerialRequest, e::Error> = serde_json::from_str(&msg).map_err(|e|e::ErrorKind::JsonError(e).into());
 
             let reply = match res {
               Ok(req) => Message::text(serde_json::to_string(&req).unwrap()),
-              Err(err) => Message::text(serde_json::to_string(&err).unwrap()),
+              Err(err) => Message::text(serde_json::to_string(&e::to_serial_response_error(err)).unwrap()),
             };
 
             sender
               .send_message(&reply)
               .unwrap_or_else(|_| {
-                                info!("Could send message {} to client {}",
+                                info!("Could not send message {} to client {}",
                                       String::from_utf8_lossy(&message.payload),
                                       ip)
                               });
           }
         }
-      }
+      };
     });
-  }
+  };
 }

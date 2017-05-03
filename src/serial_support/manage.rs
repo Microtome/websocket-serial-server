@@ -56,28 +56,21 @@ struct SerialPortManager {
 }
 
 impl SerialPortManager {
-
   /// Try and get the subscription for sub_id
-  /// If unsuccessful, return a Err<SerialResponse::Error>
-  fn get_subscription(&mut self, sub_id: String) -> Result<&Subscription, SerialResponse> {
-    match self.subscriptions.iter().find(|&s| s.sub_id == sub_id ){
-      None => Err(SerialResponse::Error{
-        err: SerialResponseError::SubscriptionNotFound{
-        sub_id: sub_id,
-        msg: "Could not find subscription".to_string()}}),
-      Some(sub) => Ok(sub)
+  /// If unsuccessful, return a Err<ErrorKind::SubscriptionNotFound>
+  fn get_subscription(&mut self, sub_id: String) -> Result<&Subscription> {
+    match self.subscriptions.iter().find(|&s| s.sub_id == sub_id) {
+      None => Err(ErrorKind::SubscriptionNotFound(sub_id).into()),
+      Some(sub) => Ok(sub),
     }
   }
 
   /// Try and get the serial port
-  /// If unsuccessful, return a Err<SerialResponse::Error>
-  fn get_port(&mut self, port:String, sub_id: Option<String>) -> Result<&OpenPort,SerialResponse>{
-    match self.open_ports.get(&port){
-      None => Err(SerialResponse::Error{
-        err: SerialResponseError::PortNotFound{
-        msg: format!("Could not find open serial port for '{}'", port),
-        port: port}}),
-      Some(sp) => Ok(sp)
+  /// If unsuccessful, return a Err<ErrorKind::OpenPortNotFound>
+  fn get_port(&mut self, port: String, sub_id: Option<String>) -> Result<&OpenPort> {
+    match self.open_ports.get(&port) {
+      None => Err(ErrorKind::OpenPortNotFound(port).into()),
+      Some(sp) => Ok(sp),
     }
   }
 
@@ -103,10 +96,10 @@ impl SerialPortManager {
     //   Some(idx) => {
     //     let sub = &mut self.subscriptions[idx];
     //     let serial_port = match self.open_ports.get(&port){
-    //       None => { 
+    //       None => {
     //         let sp = sp::open_with_settings(&port, &sp_settings);
     //         self.open_ports.insert(port, sp);
-    //         return 
+    //         return
     //       }
     //       Some(sp) => Ok(sp.port.borrow_mut())
     //     };
@@ -127,9 +120,7 @@ impl SerialPortManager {
 
   // fn add_sender(&self, port: String, sender: Sender<SerialResponse>) {}
 
-  fn set_write_lock(&self, sub_id: String, port: String) {
-
-  }
+  fn set_write_lock(&self, sub_id: String, port: String) {}
 
   fn release_write_lock(&self, sub_id: String, port: Option<String>) {}
 
@@ -145,17 +136,20 @@ impl SerialPortManager {
 
   /// Send a response to a subscription with the id sub_id
   fn send_response(&mut self, sub_id: String, response: SerialResponse) {
-    match self.subscriptions.iter().position(|s| s.sub_id == sub_id){
+    match self
+            .subscriptions
+            .iter()
+            .position(|s| s.sub_id == sub_id) {
       Some(idx) => {
-        match self.subscriptions[idx].subscriber.send(response.clone()){
-          Ok(_) => debug!("Sucessfully sent {:?} to {}",response.clone(), sub_id),
+        match self.subscriptions[idx].subscriber.send(response.clone()) {
+          Ok(_) => debug!("Sucessfully sent {:?} to {}", response.clone(), sub_id),
           Err(_) => {
             debug!("Remote end for sub_id {} closed, removing", sub_id);
             self.subscriptions.remove(idx);
           }
         }
       }
-      None => warn!("No subscription found for sub_id '{}'",sub_id)
+      None => warn!("No subscription found for sub_id '{}'", sub_id),
     }
   }
 
@@ -169,9 +163,9 @@ impl SerialPortManager {
           .send(response.clone())
           .map(|_| true)
           .unwrap_or_else(|_| {
-                     warn!("Connection closed.");
-                     false
-                   })
+                            warn!("Connection closed.");
+                            false
+                          })
       });
   }
 
@@ -244,30 +238,20 @@ impl SerialPortManager {
             // Try and parse the bytes as utf-8
             match String::from_utf8(bytes.to_vec()) {
               // We need to send as binary
-              Err(_) => {
-                SerialResponse::Read {
-                  port: port_name.to_string(),
-                  data: base64::encode(bytes),
-                  base64: Some(true),
-                }
-              }
+              Err(e) => Err(ErrorKind::Utf8Error(e)),
               Ok(s) => {
-                SerialResponse::Read {
-                  port: port_name.to_string(),
-                  data: s,
-                  base64: Some(false),
-                }
+                Ok(SerialResponse::Read {
+                     port: port_name.to_string(),
+                     data: s,
+                     base64: Some(false),
+                   })
               }
             }
           }
-          Err(_) => {
-            // We failed to read the port, send error
-            SerialResponse::Error { err:SerialResponseError::ReadError{
-              msg: "Error reading serial port '{}'".to_string(),
-              port: port_name.to_string(),
-            }}
-          }
+          Err(_) => Err(ErrorKind::PortReadError(port_name.to_string()).into()),
         };
+
+        let r = result.unwrap_or_else(|ek| to_serial_response_error(ek.into()));          
 
         // Send report, retain only live connections
         self
@@ -276,16 +260,16 @@ impl SerialPortManager {
             // If its not the port we are currently interested in, we keep it
             if !c.ports.contains(&port_name) {
               true
-            } else {
+            } else {    
               // Otherwise try and send on it, and if it fails
               // remove the subscription
               c.subscriber
-                .send(result.clone())
+                .send(r.clone())
                 .map(|_| true)
                 .unwrap_or_else(|_| {
-                           warn!("Connection closed.");
-                           false
-                         })
+                                  warn!("Connection was closed.");
+                                  false
+                                })
             }
           });
       }
