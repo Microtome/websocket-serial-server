@@ -5,9 +5,10 @@ error_chain! {
   foreign_links {
     Fmt(::std::fmt::Error);
     Io(::std::io::Error) #[cfg(unix)];
-    SerialportError(::serialport::Error) #[cfg(unix)];
-    Utf8Error(::std::string::FromUtf8Error);
-    JsonError(::serde_json::error::Error);
+    Serialport(::serialport::Error) #[cfg(unix)];
+    Utf8(::std::string::FromUtf8Error);
+    Json(::serde_json::error::Error);
+    SendResponse(::std::sync::mpsc::SendError<SerialResponse>);
   }
 
   errors{
@@ -38,6 +39,10 @@ error_chain! {
     PortWriteError(port:String){
       description("Error writing serial port")
       display("Read from port '{}' failed", port)
+    }
+    SubscriberSendError(sub_id:String){
+      description("Error sending message to subscriber")
+      display("Send to subscriber '{}' failed", sub_id)
     }
   }
 }

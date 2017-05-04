@@ -1,7 +1,7 @@
 extern crate serde_json;
 
+use std::fmt;
 use std::sync::mpsc::{Sender};
-// use serial_support::errors::SerialResponseError;
 
 pub struct SubscriptionRequest {
   pub sub_id: String,
@@ -33,6 +33,14 @@ pub enum SerialRequest {
   Close {  sub_id: String, port: Option<String> },
 }
 
+impl fmt::Display for SerialRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+      let json = serde_json::to_string(self).unwrap_or("Display SerialRequest: Serialization Failed!".to_string());
+      write!(f,"{}",json)
+    }
+}
+
+/*
 /// Represents the possible error types
 /// that can be returned
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -54,6 +62,7 @@ pub enum ErrorType {
   /// Error writing serial port
   WriteError,
 }
+*/
 
 /// Represents the valid serial responses that can be made
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -75,4 +84,11 @@ pub enum SerialResponse {
   Opened { port: String },
   /// Ok response showing that command was accepted
   Accepted { request: SerialRequest },
+}
+
+impl fmt::Display for SerialResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+      let json = serde_json::to_string(self).unwrap_or("Display SerialResponse: Serialization Failed!".to_string());
+      write!(f,"{}",json)
+    }
 }
