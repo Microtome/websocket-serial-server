@@ -56,28 +56,27 @@ struct SerialPortManager {
 }
 
 impl SerialPortManager {
-  /// Try and get the subscription for sub_id
-  /// If unsuccessful, return a Err<ErrorKind::SubscriptionNotFound>
-  fn get_subscription(&mut self, sub_id: & String) -> Result<&mut Subscription> {
-    match self.subscriptions.iter_mut().find(|s| & s.sub_id == sub_id) {
-      None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
-      Some(sub) => Ok(sub)
-    }
-  }
+  // /// Try and get the subscription for sub_id
+  // /// If unsuccessful, return a Err<ErrorKind::SubscriptionNotFound>
+  // fn get_subscription(&mut self, sub_id: & String) -> Result<&mut Subscription> {
+  //   match self.subscriptions.iter_mut().find(|s| & s.sub_id == sub_id) {
+  //     None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
+  //     Some(sub) => Ok(sub)
+  //   }
+  // }
 
-  /// Try and get the serial port
-  /// If unsuccessful, return a Err<ErrorKind::OpenPortNotFound>
-  fn get_port(&mut self, port: &String) -> Result<&mut OpenPort> {
-    match self.open_ports.get_mut(port) {
-      None => Err(ErrorKind::OpenPortNotFound(port.to_string()).into()),
-      Some(sp) => Ok(sp)
-    }
-  }
+  // /// Try and get the serial port
+  // /// If unsuccessful, return a Err<ErrorKind::OpenPortNotFound>
+  // fn get_port(&mut self, port: &String) -> Result<&mut OpenPort> {
+  //   match self.open_ports.get_mut(port) {
+  //     None => Err(ErrorKind::OpenPortNotFound(port.to_string()).into()),
+  //     Some(sp) => Ok(sp)
+  //   }
+  // }
 
   /// Open the given port.
   /// If the port is already open, then just subscribe to it
   fn open_port(&mut self, sub_id: & String, port_name:& String) -> Result<SerialResponse>  {
-
 
     fn open_serial_port(port:& String) -> Result<Box<sp::SerialPort>>{
       // If not, open it
@@ -92,28 +91,19 @@ impl SerialPortManager {
       sp::open_with_settings(&port, &sp_settings).map_err(|err|ErrorKind::SerialportError(err).into())
     };
 
-    let port_res = self.get_port(port_name)?;
-
-
-    // let port = match port_res{
-    //   Ok(p) => p,
-    //   Err(_) => {
-        let op = OpenPort{write_lock_sub_id: None, port:RefCell::new(port_res)};
-        self.open_ports.insert(port_name.to_string(), op);
-        // &mut op
-    //   }
-    // };
-
-    let sub = self.get_subscription(sub_id)?;
-
+    let sub = self.
+      subscriptions.
+      iter_mut().
+      find(|s| & s.sub_id == sub_id).
+      ok_or(ErrorKind::SubscriptionNotFound(sub_id.to_string()))?;
+    
     let mut sp = try!(open_serial_port(port_name));
 
-
-    // let port = self.get_port(port_name).unwrap_or_else(|_|{
-    //     let op = OpenPort{write_lock_sub_id: None, port:RefCell::new(sp)};
-    //     self.open_ports.insert(port_name.to_string(), op);
-    //     &mut op
-    //   });
+    let port = self.open_ports.get_mut(port_name).or_else(||{
+        let op = OpenPort{write_lock_sub_id: None, port:RefCell::new(sp)};
+        self.open_ports.insert(port_name.to_string(), op);
+        Some(& mut op)
+      });
     
     match sub.ports.iter().position(|p| p == port_name) {
       None => {sub.ports.push(port_name.to_string())}
