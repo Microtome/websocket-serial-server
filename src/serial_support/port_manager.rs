@@ -50,7 +50,7 @@ impl PortManager {
   }
 
   /// Has the port been opened
-  fn is_port_open(&self, port_name: &String) -> bool {
+  pub fn is_port_open(&self, port_name: &String) -> bool {
     self.open_ports.contains_key(port_name)
   }
 
@@ -81,14 +81,14 @@ impl PortManager {
     }
   }
 
-  fn close_port(&mut self, port_name: &String) {
+  pub fn close_port(&mut self, port_name: &String) {
     // This drops the underlying serial port and box
     self.open_ports.remove(port_name);
   }
 
   /// Write data to the port
   /// To write data to a port the port must have been previously locked by sub_id
-  fn write_port(&self, port_name: &String, sub_id: &String, data: &[u8]) -> Result<()> {
+  pub fn write_port(&self, port_name: &String, data: &[u8]) -> Result<()> {
     match self.open_ports.get(port_name) {
       None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
       Some(p) => p.write_port(data),
@@ -98,7 +98,7 @@ impl PortManager {
   /// Read data from a port into the buffer buff
   /// If successful, returns Ok(usize) which is the number of
   /// bytes read
-  fn read_port(&self, port_name: &String, buff: &mut [u8]) -> Result<usize> {
+  pub fn read_port(&self, port_name: &String, buff: &mut [u8]) -> Result<usize> {
     match self.open_ports.get(port_name) {
       None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
       Some(p) => p.read_port(buff),
@@ -123,5 +123,14 @@ impl PortManager {
         }
       }
     map
+  }
+
+  /// Get a vec of open ports
+  pub fn open_ports(&self) -> Vec<String>{
+    let mut open_ports = Vec::<String>::new();
+    for port_name in self.open_ports.keys(){
+      open_ports.push(port_name.clone());
+    }
+    open_ports
   }
 }

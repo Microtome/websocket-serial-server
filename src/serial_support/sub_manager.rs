@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::{Sender};
 
 use serial_support::errors::*;
@@ -40,10 +40,12 @@ impl Subscription{
   }
 }
 
-/// Subscription Manager
+/// The subscription manager maintains a registry of 
+/// subscriptions vs ports 
+/// and provides methods for sending
+/// messages to subscribers
 pub struct SubscriptionManager{
   /// The subscriptions
-  /// Maintains list of ports
   subscriptions: HashMap<String, Subscription>,
 }
 
@@ -56,7 +58,8 @@ impl SubscriptionManager{
     }
   }
 
-  fn add_port(&mut self, sub_id: &String, port_name: &String) -> Result<()>{
+  /// Add a port to a subscription
+  pub fn add_port(&mut self, sub_id: &String, port_name: &String) -> Result<()>{
     match self.subscriptions.get_mut(sub_id) {
       Some(sub) => {
         sub.add_port(port_name);
@@ -66,31 +69,71 @@ impl SubscriptionManager{
     }
   }
 
-  fn remove_port(&mut self, sub_id: &String, port_name: &String) -> Result<()>{
+
+  /// Remove a single port from a given subscription or all subscriptions
+  pub fn remove_port(&mut self, sub_id: &String, port_name: &String) -> Result<()>{
     match self.subscriptions.get_mut(sub_id) {
       Some(sub) => {
-        sub.remove_port(port_name);
+        sub.ports.retain(|p| p != port_name);
         Ok(())
       }
       None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into())
     }
   }
 
-  fn remove_all_ports(&mut self, sub_id: &String, port_name: &String)-> Result<()>{
-    match self.subscriptions.get_mut(sub_id) {
-      Some(sub) => {
-        sub.remove_all_ports();
-        Ok(())
-      }
-      None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into())
+  /// Remove a port from all subscriptions
+  pub fn remove_port_from_all(&mut self, port_name: &String){
+    for (_,sub) in self.subscriptions.iter_mut(){
+          sub.ports.retain(|p| p != port_name);
     }
   }
 
-  fn end_subscription(&mut self, sub_id: &String){
+  /// Remove all ports from a single subscription or all subscriptions
+  pub fn clear_ports(&mut self, sub_id: Option<&String>)-> Result<()>{
+    match sub_id {
+      Some(sid)=>{
+        match self.subscriptions.get_mut(sid) {
+          Some(sub) => {
+            sub.ports.clear();
+            Ok(())
+          }
+          None => Err(ErrorKind::SubscriptionNotFound(sid.to_string()).into())
+        }
+      },
+      None=>{
+        for (_,sub) in self.subscriptions.iter_mut(){
+          sub.ports.clear();
+        }
+        Ok(())
+      }
+    }
+  }
+
+  /// Add a subscription
+  pub fn add_subscription(&mut self, sub: SubscriptionRequest){
+    self.subscriptions.entry(sub.sub_id).or_insert(
+      Subscription{
+        subscriber: sub.subscriber,
+        ports: Vec::new()
+      }
+    );
+  }
+
+  /// Check if subscription exists, otherwise return error
+  pub fn check_subscription_exists(&self, sub_id: &String) -> Result<()>{
+    match self.subscriptions.contains_key(sub_id){
+      true => Ok(()),
+      false => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into())
+    }
+  }
+
+  /// End a subscription
+  pub fn end_subscription(&mut self, sub_id: &String){
     self.subscriptions.remove(sub_id);
   }
 
-  fn send_message(&self, sub_id: &String, msg: SerialResponse) -> Result<()>{
+  /// Send a message to the given subscription
+  pub fn send_message(&self, sub_id: &String, msg: SerialResponse) -> Result<()>{
     match self.subscriptions.get(sub_id) {
       None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
       Some(sub) => sub.subscriber.send(msg).map_err(|e|ErrorKind::SendResponse(e).into())
@@ -98,8 +141,8 @@ impl SubscriptionManager{
   }
 
   /// Broadcast a messages to all subscribers, returning
-  /// a vec of ErrorKind::SendResponse failures if some sends fail
-  fn broadcast_message(&self, sub_id: &String, msg: SerialResponse) -> Vec<Error>{
+  /// a vec of (sub_id,ErrorKind::SendResponse) failures if some sends fail
+  pub fn broadcast_message(&self, msg: SerialResponse) -> Vec<Error>{
     debug!("Broadcasting '{}' to all subscribers", &msg);
     let mut res = Vec::new();
     for(sub_id, sub) in self.subscriptions.iter(){
@@ -109,6 +152,29 @@ impl SubscriptionManager{
       }
     }
     res
+  }
+
+  /// Broadcast message to all subscribers registered for a given port
+  pub fn broadcast_message_for_port(&self, port_name: &String, msg:SerialResponse) -> Vec<Error>{
+    debug!("Broadcasting '{}' to all subscribers registered on port {}", &msg, port_name);
+    let mut res = Vec::new();
+    for(sub_id, sub) in self.subscriptions.iter(){
+      if sub.ports.iter().position(|p| *p == *port_name).is_some() {
+        match self.send_message(sub_id, msg.clone()){
+          Err(e) => res.push(e),
+          _ => {debug!("  Broadcast to '{}' was successful", sub_id)}
+        } 
+      }
+    }
+    res
+  }
+
+  pub fn subscribed_ports(&self) -> Vec<String>{
+    let mut subscribed_ports = Vec::<String>::new();
+    for port_name in self.subscriptions.keys(){
+      subscribed_ports.push(port_name.clone());
+    }
+    subscribed_ports
   }
 
 }

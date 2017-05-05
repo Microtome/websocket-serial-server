@@ -9,6 +9,7 @@ error_chain! {
     Utf8(::std::string::FromUtf8Error);
     Json(::serde_json::error::Error);
     SendResponse(::std::sync::mpsc::SendError<SerialResponse>);
+    Base64(::base64::DecodeError);
   }
 
   errors{

@@ -11,6 +11,10 @@ pub struct SubscriptionRequest {
 /// Represents the valid json requests that can be made
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum SerialRequest {
+  // TODO: Divorce subscriptions from port open/close?
+  // Right now port is only closed when last subscriber
+  // unsubscribes
+
   /// Open a port for reading
   Open { sub_id: String, port: String},
   /// Take control of a port for writing
@@ -40,30 +44,6 @@ impl fmt::Display for SerialRequest {
     }
 }
 
-/*
-/// Represents the possible error types
-/// that can be returned
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum ErrorType {
-  /// Port not found
-  PortNotFound,
-  /// Subscription Id not found
-  SubscriptionNotFound,
-  /// Failed to parse message
-  JsonParseFailure,
-  /// Unknown request
-  UnknownRequest,
-  /// Someone else has already locked the port for writing
-  AlreadyWriteLocked,
-  /// WriteLock needed
-  NeedWriteLock,
-  /// Error reading serial port
-  ReadError,
-  /// Error writing serial port
-  WriteError,
-}
-*/
-
 /// Represents the valid serial responses that can be made
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum SerialResponse {
@@ -82,8 +62,10 @@ pub enum SerialResponse {
   Closed { port: String },
   /// Port was closed
   Opened { port: String },
-  /// Ok response showing that command was accepted
-  Accepted { request: SerialRequest },
+  /// Command successful
+  Ok{msg:String}
+  // Ok response showing that command was accepted
+  // Accepted { request: SerialRequest },
 }
 
 impl fmt::Display for SerialResponse {
