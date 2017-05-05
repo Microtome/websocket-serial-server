@@ -6,7 +6,7 @@
 	</head>
 	<body>
 		<script>
-			var socket = new WebSocket("ws://127.0.0.1:{wsPort}", "rust-websocket");
+			var socket = new WebSocket("ws://127.0.0.1:{ws_port}", "websocket-serial-json");
 			socket.onmessage = function (event) {{
 				var received = document.getElementById("received");
 				var br = document.createElement("BR");

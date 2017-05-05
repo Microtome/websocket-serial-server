@@ -33,7 +33,7 @@ use serial_support::messages::*;
 use serial_support::errors as e;
 
 fn main() {
-
+ 
   // Init logger
   env_logger::init().unwrap();
 
@@ -54,12 +54,16 @@ fn main() {
     ap.parse_args_or_exit();
   }
 
+  let ws_port = port+1;
+
+  let websocket_html = format!(include_str!("websockets.html"), ws_port = ws_port);
+
   // The HTTP server handler
   let http_handler = move |_: Request, response: Response<Fresh>| {
     let mut response = response.start().unwrap();
     // Send a client webpage
     response
-      .write_all(format!(include_str!("websockets.html"), wsPort = port + 1).as_bytes())
+      .write_all(websocket_html.as_bytes())
       .unwrap();
     response.end().unwrap();
   };
@@ -80,13 +84,13 @@ fn main() {
     thread::spawn(move || {
       if !connection
             .protocols()
-            .contains(&"rust-websocket".to_string()) {
+            .contains(&"websocket-serial-json".to_string()) {
         connection.reject().unwrap();
         return;
       }
 
       let client = connection
-        .use_protocol("rust-websocket")
+        .use_protocol("websocket-serial-json")
         .accept()
         .unwrap();
 
