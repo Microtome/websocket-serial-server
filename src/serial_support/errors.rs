@@ -49,8 +49,8 @@ error_chain! {
 }
 
 pub fn to_serial_response_error(err: Error) -> SerialResponse {
-  SerialResponse::Error{
+  SerialResponse::Error {
     description: err.description().to_string(),
-    display: format!("{}",err),
+    display: format!("{}", err),
   }
 }

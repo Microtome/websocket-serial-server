@@ -1,11 +1,11 @@
 extern crate serde_json;
 
 use std::fmt;
-use std::sync::mpsc::{Sender};
+use std::sync::mpsc::Sender;
 
 pub struct SubscriptionRequest {
   pub sub_id: String,
-  pub subscriber: Sender<SerialResponse> 
+  pub subscriber: Sender<SerialResponse>,
 }
 
 /// Represents the valid json requests that can be made
@@ -14,9 +14,8 @@ pub enum SerialRequest {
   // TODO: Divorce subscriptions from port open/close?
   // Right now port is only closed when last subscriber
   // unsubscribes
-
   /// Open a port for reading
-  Open { sub_id: String, port: String},
+  Open { sub_id: String, port: String },
   /// Take control of a port for writing
   WriteLock { sub_id: String, port: String },
   /// Release control of a port for writing
@@ -34,14 +33,18 @@ pub enum SerialRequest {
     base64: Option<bool>,
   },
   /// Close a port
-  Close {  sub_id: String, port: Option<String> },
+  Close {
+    sub_id: String,
+    port: Option<String>,
+  },
 }
 
 impl fmt::Display for SerialRequest {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-      let json = serde_json::to_string(self).unwrap_or("Display SerialRequest: Serialization Failed!".to_string());
-      write!(f,"{}",json)
-    }
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let json = serde_json::to_string(self).unwrap_or("Display SerialRequest: Serialization Failed!"
+                                                       .to_string());
+    write!(f, "{}", json)
+  }
 }
 
 /// Represents the valid serial responses that can be made
@@ -50,7 +53,7 @@ pub enum SerialResponse {
   /// Error response
   Error {
     description: String,
-    display: String
+    display: String,
   },
   /// Data that was read from port
   Read {
@@ -63,14 +66,14 @@ pub enum SerialResponse {
   /// Port was closed
   Opened { port: String },
   /// Command successful
-  Ok{msg:String}
-  // Ok response showing that command was accepted
-  // Accepted { request: SerialRequest },
+  Ok { msg: String }, // Ok response showing that command was accepted
+                      // Accepted { request: SerialRequest }
 }
 
 impl fmt::Display for SerialResponse {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-      let json = serde_json::to_string(self).unwrap_or("Display SerialResponse: Serialization Failed!".to_string());
-      write!(f,"{}",json)
-    }
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let json = serde_json::to_string(self).unwrap_or("Display SerialResponse: Serialization Failed!"
+                                                       .to_string());
+    write!(f, "{}", json)
+  }
 }

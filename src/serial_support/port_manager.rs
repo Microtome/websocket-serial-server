@@ -15,7 +15,6 @@ struct OpenPort {
 }
 
 impl OpenPort {
-  
   /// Write data to the serial port
   pub fn write_port(&self, data: &[u8]) -> Result<()> {
     self
@@ -41,12 +40,9 @@ pub struct PortManager {
 }
 
 impl PortManager {
-
   /// Create a new PortManager instance
   pub fn new() -> PortManager {
-    PortManager{
-      open_ports: HashMap::new()
-    }
+    PortManager { open_ports: HashMap::new() }
   }
 
   /// Has the port been opened
@@ -105,30 +101,31 @@ impl PortManager {
     }
   }
 
-  
+
   /// Read all currently open ports, return a hashmap of
   /// ports to Result<Vec<u8>>
-  pub fn read_all_ports(&self) -> HashMap<String,Result<Vec<u8>>>{
+  pub fn read_all_ports(&self) -> HashMap<String, Result<Vec<u8>>> {
     let mut buffer = vec![0; 4096];
     let mut map = HashMap::new();
-      for port_name in self.open_ports.keys(){
-        match self.read_port(port_name,buffer.as_mut_slice()){
-          Ok(bytes_read) => {
-            let bytes = buffer[0..bytes_read].to_vec();
-            map.insert(port_name.to_string(), Ok(bytes));
-          },
-          Err(e) => {
-            map.insert(port_name.to_string(), Err(ErrorKind::PortReadError(port_name.to_string()).into()));
-          }
+    for port_name in self.open_ports.keys() {
+      match self.read_port(port_name, buffer.as_mut_slice()) {
+        Ok(bytes_read) => {
+          let bytes = buffer[0..bytes_read].to_vec();
+          map.insert(port_name.to_string(), Ok(bytes));
+        }
+        Err(e) => {
+          map.insert(port_name.to_string(),
+                     Err(ErrorKind::PortReadError(port_name.to_string()).into()));
         }
       }
+    }
     map
   }
 
   /// Get a vec of open ports
-  pub fn open_ports(&self) -> Vec<String>{
+  pub fn open_ports(&self) -> Vec<String> {
     let mut open_ports = Vec::<String>::new();
-    for port_name in self.open_ports.keys(){
+    for port_name in self.open_ports.keys() {
       open_ports.push(port_name.clone());
     }
     open_ports

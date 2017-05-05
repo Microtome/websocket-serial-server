@@ -33,7 +33,7 @@ use serial_support::messages::*;
 use serial_support::errors as e;
 
 fn main() {
- 
+
   // Init logger
   env_logger::init().unwrap();
 
@@ -54,7 +54,7 @@ fn main() {
     ap.parse_args_or_exit();
   }
 
-  let ws_port = port+1;
+  let ws_port = port + 1;
 
   let websocket_html = format!(include_str!("websockets.html"), ws_port = ws_port);
 
@@ -62,9 +62,7 @@ fn main() {
   let http_handler = move |_: Request, response: Response<Fresh>| {
     let mut response = response.start().unwrap();
     // Send a client webpage
-    response
-      .write_all(websocket_html.as_bytes())
-      .unwrap();
+    response.write_all(websocket_html.as_bytes()).unwrap();
     response.end().unwrap();
   };
 
@@ -114,7 +112,7 @@ fn main() {
               .send_message(&message)
               .unwrap_or_else(|_| info!("Client {} hung up!", ip));
             info!("Client {} disconnected", ip);
-            
+
           }
 
           Type::Ping => {
@@ -130,11 +128,14 @@ fn main() {
             let msg = String::from_utf8_lossy(&message.payload);
 
             // So we will get a result <SerialRequest::*,SerialResponse::Error> back
-            let res: Result<SerialRequest, e::Error> = serde_json::from_str(&msg).map_err(|err|e::ErrorKind::Json(err).into());
+            let res: Result<SerialRequest, e::Error> =
+              serde_json::from_str(&msg).map_err(|err| e::ErrorKind::Json(err).into());
 
             let reply = match res {
               Ok(req) => Message::text(serde_json::to_string(&req).unwrap()),
-              Err(err) => Message::text(serde_json::to_string(&e::to_serial_response_error(err)).unwrap()),
+              Err(err) => {
+                Message::text(serde_json::to_string(&e::to_serial_response_error(err)).unwrap())
+              }
             };
 
             sender
@@ -146,7 +147,7 @@ fn main() {
                               });
           }
         }
-      };
+      }
     });
-  };
+  }
 }
