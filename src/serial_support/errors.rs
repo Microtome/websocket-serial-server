@@ -1,4 +1,4 @@
-use serial_support::messages::SerialResponse;
+use serial_support::messages::{SerialResponse, SerialRequest};
 
 error_chain! {
 
@@ -10,6 +10,8 @@ error_chain! {
     Json(::serde_json::error::Error);
     SendResponse(::std::sync::mpsc::SendError<SerialResponse>);
     Base64(::base64::DecodeError);
+    SendRequest(::std::sync::mpsc::SendError<SerialRequest>);
+    SendWsMessage(::websocket::result::WebSocketError);
   }
 
   errors{
