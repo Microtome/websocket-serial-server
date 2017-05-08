@@ -15,6 +15,8 @@ Connect to and read / write serial ports over websockets. In Rust
 
 ## TODO
 * [ ] Determine settings to help shrink file size
+* [ ] Add command to reset entire serial port managment subsystem
+if it looks like things are wedged
  
 ## Limitations
 
