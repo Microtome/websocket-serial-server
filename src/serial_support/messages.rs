@@ -3,6 +3,7 @@ extern crate serde_json;
 use std::fmt;
 use std::sync::mpsc::Sender;
 
+#[derive( Clone, Debug)]
 pub struct SubscriptionRequest {
   pub sub_id: String,
   pub subscriber: Sender<SerialResponse>,
