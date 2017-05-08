@@ -21,12 +21,12 @@
 				input.value = "";
 			}}
 		</script>
+			<form onsubmit="send('message'); return false">
+				<textarea id="message" cols="80" rows="10"></textarea>
+				<input type="submit" value="Send">
+			</form>
 			<p id="received">
 				<strong>Received Messages:</strong>
 			</p>
-			<form onsubmit="send('message'); return false">
-				<input type="text" id="message">
-				<input type="submit" value="Send">
-			</form>
 	</body>
 </html>
