@@ -20,7 +20,8 @@ use serial_support::writelock_manager::*;
 use serial_support::common::*;
 
 /// Manager manages connection state.
-struct Manager {
+/// TODO Needs a better name
+pub struct Manager {
   /// Manage write lock status
   writelock_manager: WriteLockManager,
   /// Manage ports
@@ -111,6 +112,8 @@ impl Manager {
           }
           // Send data reads
           Err(e) => {
+            warn!("Error reading port!");
+            warn!("{}",e);
             bad_ports.insert(port_name);
           }
         }
