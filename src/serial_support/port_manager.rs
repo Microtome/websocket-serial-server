@@ -115,7 +115,7 @@ impl PortManager {
         }
         Err(e) => {
           map.insert(port_name.to_string(),
-                     Err(ErrorKind::PortReadError(port_name.to_string()).into()));
+                     Err(e.into()));
         }
       }
     }
