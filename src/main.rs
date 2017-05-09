@@ -22,7 +22,7 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration};
 
 use argparse::{ArgumentParser, Store};
 use websocket::client::Writer;

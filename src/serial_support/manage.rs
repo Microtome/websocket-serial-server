@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration};
 
 use base64;
 
