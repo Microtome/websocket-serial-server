@@ -236,10 +236,13 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
             // Do I misunderstand unwrap_or?
             sender
               .send_message(&reply)
-              .unwrap_or(info!("{}: Could not send message '{}' to client '{}'",
-                               sub_id,
-                               json,
-                               ip));
+              .unwrap_or_else(|e| {
+                                info!("{}: Could not send message '{}' to client '{}', cause '{}'",
+                                      sub_id,
+                                      json,
+                                      ip,
+                                      e)
+                              });
           }
           Err(_) => {}
         }
