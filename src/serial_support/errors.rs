@@ -37,11 +37,15 @@ error_chain! {
     }
     PortReadError(port:String){
       description("Error reading serial port")
-      display("Write to port '{}' failed", port)
+      display("Read from port '{}' failed", port)
+    }
+    PortEOFError(port:String){
+      description("Encountered EOF reading serial port")
+      display("Encountered EOF reading serial port {}", port)
     }
     PortWriteError(port:String){
       description("Error writing serial port")
-      display("Read from port '{}' failed", port)
+      display("Writing to port '{}' failed", port)
     }
     SubscriberSendError(sub_id:String){
       description("Error sending message to subscriber")
