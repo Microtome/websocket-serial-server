@@ -35,6 +35,8 @@ if it looks like things are wedged
     * [ ] Specify cert locations
 * [ ] Add method to reinitialize serial port subsystem if things
 totally go south
+* [x] Remove sub_id from SerialRequest and send it as tuple
+with sub_id to handler method
 
 
 ## Limitations

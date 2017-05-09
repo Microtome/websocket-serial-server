@@ -10,7 +10,7 @@ error_chain! {
     Json(::serde_json::error::Error);
     SendResponse(::std::sync::mpsc::SendError<SerialResponse>);
     Base64(::base64::DecodeError);
-    SendRequest(::std::sync::mpsc::SendError<SerialRequest>);
+    SendRequest(::std::sync::mpsc::SendError<(String,SerialRequest)>);
     SendWsMessage(::websocket::result::WebSocketError);
   }
 

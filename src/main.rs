@@ -45,11 +45,8 @@ fn main() {
   // Init logger
   env_logger::init().unwrap();
 
-  // let sr = SerialResponse::Response {
-  //     data: "HEY YOU".to_string(),
-  //     base64: None,
-  // };
-  // info!("serialized = {}", serde_json::to_string(&sr).unwrap());
+  let sr = SerialRequest::List{};
+  info!("serialized = {}", serde_json::to_string(&sr).unwrap());
 
   // Default port number
   let mut port = 8080;
@@ -82,7 +79,7 @@ fn main() {
 
   // Set up channels and Manager
   let (sub_tx, sub_rx) = channel::<SubscriptionRequest>();
-  let (sreq_tx, sreq_rx) = channel::<SerialRequest>();
+  let (sreq_tx, sreq_rx) = channel::<(String,SerialRequest)>();
   Manager::spawn(sreq_rx, sub_rx);
 
   // Start listening for http connections
@@ -107,13 +104,13 @@ fn main() {
 }
 
 fn spawn_ws_handler(sub_tx_clone: Sender<SubscriptionRequest>,
-                    sreq_tx_clone: Sender<SerialRequest>,
+                    sreq_tx_clone: Sender<(String,SerialRequest)>,
                     connection: WsUpgrade<TcpStream>) {
   thread::spawn(move || ws_handler(&sub_tx_clone, &sreq_tx_clone, connection));
 }
 
 fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
-              sreq_tx: &Sender<SerialRequest>,
+              sreq_tx: &Sender<(String,SerialRequest)>,
               connection: WsUpgrade<TcpStream>) {
 
   // Set up subscription id
@@ -181,13 +178,10 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
             let message = Message::close();
             sender
               .send_message(&message)
-              .unwrap_or(info!("{}: Client {} hung up!", sub_id, ip));
+              .unwrap_or(info!("{}: Client {} hung up!",sub_id, ip));
             // Send close request to cleanup resources
             sreq_tx
-              .send(SerialRequest::Close {
-                      sub_id: sub_id.clone(),
-                      port: None,
-                    })
+              .send((sub_id.clone(),SerialRequest::Close { port: None}))
               .unwrap_or_else(|e| {
                                 warn!("Client exit cleanup failed for sub_id '{}', cause '{}'",
                                       sub_id,
@@ -212,7 +206,7 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
             // So we will get a result <SerialRequest::*,SerialResponse::Error> back
             match serde_json::from_str(&msg) {
               Ok(req) => {
-                match sreq_tx.send(req) {
+                match sreq_tx.send((sub_id.clone(),req)) {
                   Err(err) => {
                     let error = e::ErrorKind::SendRequest(err).into();
                     send_serial_response_error(&sub_id, &mut sender, error);

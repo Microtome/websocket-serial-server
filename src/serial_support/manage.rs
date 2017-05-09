@@ -29,14 +29,16 @@ pub struct Manager {
   /// Manage subscriptions
   sub_manager: SubscriptionManager,
   /// Receiver for serial requests
-  receiver: Receiver<SerialRequest>,
+  receiver: Receiver<(String, SerialRequest)>,
   /// Receiver for response subscription requests
   subsc_receiver: SubscReceiver,
 }
 
 impl Manager {
   ///Constructor
-  pub fn new(receiver: Receiver<SerialRequest>, subsc_receiver: SubscReceiver) -> Manager {
+  pub fn new(receiver: Receiver<(String, SerialRequest)>,
+             subsc_receiver: SubscReceiver)
+             -> Manager {
     Manager {
       writelock_manager: WriteLockManager::new(),
       port_manager: PortManager::new(),
@@ -47,7 +49,7 @@ impl Manager {
   }
 
   ///Spawn an instance in a new thread.
-  pub fn spawn(receiver: Receiver<SerialRequest>,
+  pub fn spawn(receiver: Receiver<(String,SerialRequest)>,
                subsc_receiver: SubscReceiver)
                -> thread::JoinHandle<()> {
     thread::spawn(move || { Manager::new(receiver, subsc_receiver).run(); })
@@ -84,7 +86,7 @@ impl Manager {
             }
           }
         }
-        Ok(req) => self.handle_serial_request(req),
+        Ok(req) => self.handle_serial_request(req.0,req.1),
       }
 
       // Check for new data on each port
@@ -154,21 +156,20 @@ impl Manager {
 
   /// Handles and dispatches SerialRequest sent by
   /// the channel
-  fn handle_serial_request(&mut self, msg: SerialRequest) {
+  fn handle_serial_request(&mut self, sub_id: String, msg: SerialRequest) {
     let response = match msg {
-      SerialRequest::Open { sub_id, port } => self.handle_open_port(sub_id, port),
-      SerialRequest::WriteLock { sub_id, port } => self.handle_write_lock(sub_id, port),
-      SerialRequest::ReleaseWriteLock { sub_id, port } => {
-        self.handle_release_write_lock(sub_id, port)
+      SerialRequest::Open { port } => self.handle_open_port(sub_id, port),
+      SerialRequest::WriteLock { port } => self.handle_write_lock(sub_id, port),
+      SerialRequest::ReleaseWriteLock { port } => {
+        self.handle_release_write_lock(sub_id,port)
       }
       SerialRequest::Write {
-        sub_id,
         port,
         data,
         base64,
-      } => self.handle_write_port(sub_id, port, data, base64.unwrap_or(false)),
-      SerialRequest::Close { sub_id, port } => self.handle_close_port(sub_id, port),
-      SerialRequest::List { sub_id } => self.handle_list_ports(sub_id),
+      } => self.handle_write_port( sub_id,port, data, base64.unwrap_or(false)),
+      SerialRequest::Close { port } => self.handle_close_port(sub_id, port),
+      SerialRequest::List{}  => self.handle_list_ports(sub_id),
     };
     match response {
       Ok(response) => {

@@ -19,30 +19,23 @@ pub enum SerialRequest {
   // Right now port is only closed when last subscriber
   // unsubscribes
   /// Open a port for reading
-  Open { sub_id: String, port: String },
+  Open { port: String },
   /// Take control of a port for writing
-  WriteLock { sub_id: String, port: String },
+  WriteLock { port: String },
   /// Release control of a port for writing
   /// If no port is given, release all write locks
   /// for all ports
-  ReleaseWriteLock {
-    sub_id: String,
-    port: Option<String>,
-  },
+  ReleaseWriteLock { port: Option<String> },
   /// Write data, only works if we have control
   Write {
-    sub_id: String,
     port: String,
     data: String,
     base64: Option<bool>,
   },
   /// Close a port or subscription
-  Close {
-    sub_id: String,
-    port: Option<String>,
-  },
+  Close { port: Option<String> },
   /// List serial ports
-  List { sub_id: String },
+  List{},
 }
 
 impl fmt::Display for SerialRequest {
