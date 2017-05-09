@@ -36,7 +36,7 @@ pub enum SerialRequest {
     data: String,
     base64: Option<bool>,
   },
-  /// Close a port
+  /// Close a port or subscription
   Close {
     sub_id: String,
     port: Option<String>,
