@@ -113,7 +113,7 @@ impl Manager {
           // Send data reads
           Err(e) => {
             warn!("Error reading port!");
-            warn!("{}",e);
+            warn!("{}", e);
             bad_ports.insert(port_name);
           }
         }
