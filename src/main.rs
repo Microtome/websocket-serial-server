@@ -182,6 +182,9 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
             sender
               .send_message(&message)
               .unwrap_or(info!("{}: Client {} hung up!", sub_id, ip));
+              // Send close request to cleanup resources
+            sreq_tx.send(SerialRequest::Close{sub_id: sub_id.clone(), port:None})
+            .unwrap_or_else(|e| warn!("Client exit cleanup failed for sub_id '{}', cause '{}'",sub_id,e));
             info!("{}: Client {} disconnected", sub_id, ip);
             exit = true;
           }
