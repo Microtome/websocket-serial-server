@@ -3,8 +3,6 @@ Connect to and read / write serial ports over websockets. In Rust
 
 **VERY VERY VERY ALPHA**
 
-**DOES NOT WORK YET**
-
 ## Dependencies
 
 ### Linux
@@ -14,15 +12,26 @@ Connect to and read / write serial ports over websockets. In Rust
 1. `sudo apt-get install pkg-config`
 
 ## TODO
+
 * [ ] Determine settings to help shrink file size
 * [ ] Add command to reset entire serial port managment subsystem
 if it looks like things are wedged
- 
+* [ ] Switch to dynamic timing loops for all msg handling threads
+    * [ ] Allow users to specify desired update frequency
+    * [ ] Log if time per loop is exceeded
+* [ ] Configuration file support
+    * [ ] Use [toml](https://github.com/toml-lang/toml)
+    * [ ] serial port whitelist/blacklist/regex
+    * [ ] Specify ip address to bind to besides local host
+* [ ] Add HTTPS/WSS support
+    * [ ] Specify cert locations
+
+
 ## Limitations
 
 Currently Websocket-rs is not tokio based, so it spawns a thread per connection.
 For having a few clients talk to a 3D printer, CNC machine, or other 
-such use case, this is normally fine. 
+such use case, this is fine. 
 
 Once Websocket-rs moves to tokio, this limitation can be removed
 
@@ -44,7 +53,8 @@ The rust.rls is the most important one.
             "rls"
         ]
     },
-    "editor.formatOnSave": true,
-    "editor.fontFamily": "Fira Code"
+    //"editor.formatOnSave": true,
+    //"editor.fontFamily": "Fira Code"
 }
 ```
+
