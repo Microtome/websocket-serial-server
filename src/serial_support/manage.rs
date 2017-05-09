@@ -5,7 +5,6 @@
 /// subscribe to data from multiple ports for reads
 
 use std::collections::HashSet;
-use std::iter::FromIterator;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
 use std::time::Duration;
@@ -49,7 +48,7 @@ impl Manager {
   }
 
   ///Spawn an instance in a new thread.
-  pub fn spawn(receiver: Receiver<(String,SerialRequest)>,
+  pub fn spawn(receiver: Receiver<(String, SerialRequest)>,
                subsc_receiver: SubscReceiver)
                -> thread::JoinHandle<()> {
     thread::spawn(move || { Manager::new(receiver, subsc_receiver).run(); })
@@ -86,7 +85,7 @@ impl Manager {
             }
           }
         }
-        Ok(req) => self.handle_serial_request(req.0,req.1),
+        Ok(req) => self.handle_serial_request(req.0, req.1),
       }
 
       // Check for new data on each port
@@ -160,16 +159,12 @@ impl Manager {
     let response = match msg {
       SerialRequest::Open { port } => self.handle_open_port(sub_id, port),
       SerialRequest::WriteLock { port } => self.handle_write_lock(sub_id, port),
-      SerialRequest::ReleaseWriteLock { port } => {
-        self.handle_release_write_lock(sub_id,port)
+      SerialRequest::ReleaseWriteLock { port } => self.handle_release_write_lock(sub_id, port),
+      SerialRequest::Write { port, data, base64 } => {
+        self.handle_write_port(sub_id, port, data, base64.unwrap_or(false))
       }
-      SerialRequest::Write {
-        port,
-        data,
-        base64,
-      } => self.handle_write_port( sub_id,port, data, base64.unwrap_or(false)),
       SerialRequest::Close { port } => self.handle_close_port(sub_id, port),
-      SerialRequest::List{}  => self.handle_list_ports(sub_id),
+      SerialRequest::List {} => self.handle_list_ports(sub_id),
     };
     match response {
       Ok(response) => {
@@ -280,9 +275,10 @@ impl Manager {
       Some(pn) => self.sub_manager.remove_port(&sub_id, &pn),
     }?;
     // Close ports with no subscribers
-    let open_ports = HashSet::<String>::from_iter(self.port_manager.open_ports());
-    let subscribed_ports = HashSet::<String>::from_iter(self.sub_manager.subscribed_ports());
+    let open_ports = self.port_manager.open_ports();
+    let subscribed_ports = self.sub_manager.subscribed_ports();
     let ports_with_no_subs = open_ports.difference(&subscribed_ports);
+
     // For each open port that isn't subscribed,
     for port_to_close in ports_with_no_subs {
       // close it

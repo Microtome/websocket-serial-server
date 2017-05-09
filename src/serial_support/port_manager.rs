@@ -1,6 +1,7 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
+use std::iter::FromIterator;
 use std::time::Duration;
 
 use serialport as sp;
@@ -145,11 +146,7 @@ impl PortManager {
   }
 
   /// Get a vec of open ports
-  pub fn open_ports(&self) -> Vec<String> {
-    let mut open_ports = Vec::<String>::new();
-    for port_name in self.open_ports.keys() {
-      open_ports.push(port_name.clone());
-    }
-    open_ports
+  pub fn open_ports(&self) -> HashSet<String> {
+    HashSet::<String>::from_iter(self.open_ports.keys().map(|k| k.clone()))
   }
 }

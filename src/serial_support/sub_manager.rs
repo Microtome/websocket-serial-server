@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::Sender;
 
 use serial_support::errors::*;
@@ -180,10 +180,11 @@ impl SubscriptionManager {
     res
   }
 
-  pub fn subscribed_ports(&self) -> Vec<String> {
-    let mut subscribed_ports = Vec::<String>::new();
-    for port_name in self.subscriptions.keys() {
-      subscribed_ports.push(port_name.clone());
+  /// Get a list of ports that currently have subscriptions
+  pub fn subscribed_ports(&mut self) -> HashSet<String> {
+    let mut subscribed_ports = HashSet::<String>::new();
+    for subs in self.subscriptions.values() {
+      subscribed_ports.extend(subs.ports.clone());
     }
     subscribed_ports
   }
