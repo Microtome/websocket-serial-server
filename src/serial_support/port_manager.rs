@@ -130,7 +130,7 @@ impl PortManager {
           }
         }
         Err(e) => {
-          debug!("Error {} reading from port {}", e, port_name);
+          // debug!("Error {} reading from port {}", e, port_name);
           match e.description() {
             "Operation timed out" => {}
             _ => {
