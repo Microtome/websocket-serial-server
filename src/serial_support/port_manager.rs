@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::error::Error;
 use std::time::Duration;
 
 use serialport as sp;
@@ -62,7 +63,10 @@ impl PortManager {
         data_bits: sp::DataBits::Eight,
         flow_control: sp::FlowControl::None,
         parity: sp::Parity::None,
-        stop_bits: sp::StopBits::One,
+        // Bug, 1.0.1 has One and Two mixed up
+        // FIXME: Fixed in next release
+        // So here we use Two to select One stop bit
+        stop_bits: sp::StopBits::Two,
         timeout: Duration::from_millis(1),
       };
 
@@ -110,12 +114,25 @@ impl PortManager {
     for port_name in self.open_ports.keys() {
       match self.read_port(port_name, buffer.as_mut_slice()) {
         Ok(bytes_read) => {
-          let bytes = buffer[0..bytes_read].to_vec();
-          map.insert(port_name.to_string(), Ok(bytes));
+          if bytes_read == 0 {
+            // EOF
+            info!("Received EOF reading from port {}", port_name);
+            map.insert(port_name.to_string(),
+                       Err(ErrorKind::PortEOFError(port_name.clone()).into()));
+          } else {
+            let bytes = buffer[0..bytes_read].to_vec();
+            map.insert(port_name.to_string(), Ok(bytes));
+          }
         }
         Err(e) => {
-          map.insert(port_name.to_string(),
-                     Err(e.into()));
+          debug!("Error {} reading from port {}", e, port_name);
+          match e.description() {
+            "Operation timed out" => {}
+            _ => {
+              map.insert(port_name.to_string(), Err(e.into()));
+            }
+          }
+
         }
       }
     }
