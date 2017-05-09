@@ -11,6 +11,14 @@ Connect to and read / write serial ports over websockets. In Rust
 1. `sudo apt-get install libssl-dev`
 1. `sudo apt-get install pkg-config`
 
+### Windows
+
+Unknown, help appreciated.
+
+### OSX
+
+Unknown, help appreciated.
+
 ## TODO
 
 * [ ] Determine settings to help shrink file size
@@ -25,6 +33,8 @@ if it looks like things are wedged
     * [ ] Specify ip address to bind to besides local host
 * [ ] Add HTTPS/WSS support
     * [ ] Specify cert locations
+* [ ] Add method to reinitialize serial port subsystem if things
+totally go south
 
 
 ## Limitations
