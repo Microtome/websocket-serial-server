@@ -35,7 +35,7 @@ pub enum SerialRequest {
   /// Close a port or subscription
   Close { port: Option<String> },
   /// List serial ports
-  List{},
+  List {},
 }
 
 impl fmt::Display for SerialRequest {
