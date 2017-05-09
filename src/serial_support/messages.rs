@@ -1,4 +1,7 @@
-extern crate serde_json;
+use serde_json;
+
+// TODO: use when new version drops
+//use serialport::{SerialPortInfo,UsbPortInfo,SerialPortType};
 
 use std::fmt;
 use std::sync::mpsc::Sender;
@@ -38,6 +41,8 @@ pub enum SerialRequest {
     sub_id: String,
     port: Option<String>,
   },
+  /// List serial ports
+  List { sub_id: String },
 }
 
 impl fmt::Display for SerialRequest {
@@ -67,9 +72,57 @@ pub enum SerialResponse {
   /// Port was closed
   Opened { port: String },
   /// Command successful
-  Ok { msg: String }, // Ok response showing that command was accepted
-                      // Accepted { request: SerialRequest }
+  Ok { msg: String },
+  /// List serial ports response
+  List { ports: Vec<String> },
 }
+
+
+/*
+// TODO: Uncomment when new serialport module version drops
+/// Needed for Serde Support as 
+/// SerialPortInfo is in seperate module
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(remote = "SerialPortInfo")]
+pub struct SerialPortInfoDef {
+    /// The short name of the serial port
+    pub port_name: String,
+    /// The hardware device type that exposes this port
+    pub port_type: SerialPortType,
+
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "sp::SerialPortType")]
+/// The physical type of a `SerialPort`
+pub enum SerialPortTypeDef {
+    /// The serial port is connected via USB
+    UsbPort(UsbPortInfoDef),
+    /// The serial port is connected via PCI (permanent port)
+    PciPort,
+    /// The serial port is connected via Bluetooth
+    BluetoothPort,
+    /// It can't be determined how the serial port is connected
+    Unknown,
+}
+
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "UsbPortInfo")]
+pub struct UsbPortInfoDef {
+    /// Vender ID
+    pub vid: u16,
+    /// Product ID
+    pub pid: u16,
+    /// Serial number (arbitrary string)
+    pub serial_number: Option<String>,
+    /// Manufacturer (arbitrary string)
+    pub manufacturer: Option<String>,
+    /// Product name (arbitrary string)
+    pub product: Option<String>,
+}
+*/
+
 
 impl fmt::Display for SerialResponse {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -51,6 +51,11 @@ impl PortManager {
     self.open_ports.contains_key(port_name)
   }
 
+  /// List all serial ports
+  pub fn list_ports(&self) -> Result<Vec<sp::SerialPortInfo>> {
+    sp::available_ports().map_err(|e| ErrorKind::Serialport(e).into())
+  }
+
   /// Open a port
   pub fn open_port(&mut self, port_name: &String) -> Result<()> {
 
@@ -63,8 +68,8 @@ impl PortManager {
         data_bits: sp::DataBits::Eight,
         flow_control: sp::FlowControl::None,
         parity: sp::Parity::None,
-        // Bug, 1.0.1 has One and Two mixed up
-        // FIXME: Fixed in next release
+        // Bug: serialport 1.0.1 has One and Two mixed up
+        // FIXME: Will be fixed in next release
         // So here we use Two to select One stop bit
         stop_bits: sp::StopBits::Two,
         timeout: Duration::from_millis(1),

@@ -168,10 +168,16 @@ impl Manager {
         base64,
       } => self.handle_write_port(sub_id, port, data, base64.unwrap_or(false)),
       SerialRequest::Close { sub_id, port } => self.handle_close_port(sub_id, port),
+      SerialRequest::List { sub_id } => self.handle_list_ports(sub_id),
     };
     match response {
-      Ok(response) => {}
-      Err(e) => {}
+      Ok(response) => {
+        // Send acknowledge?
+      }
+      Err(e) => {
+        warn!("Error '{}' occured handling serial request message", e);
+        // Send error?
+      }
     }
   }
 
@@ -242,6 +248,23 @@ impl Manager {
       .and(Ok(SerialResponse::Ok {
                 msg: format!("Opening port {} succeeded", port_name).to_string(),
               }))
+  }
+
+  /// Handle list ports request
+  fn handle_list_ports(&mut self, sub_id: String) -> Result<SerialResponse> {
+    self.check_sub_id(&sub_id)?;
+    let port_names: Result<Vec<String>> =
+      self
+        .port_manager
+        .list_ports()
+        .map(|v| v.iter().map(|v| v.port_name.clone()).collect());
+    let resp = port_names.map(|pns| SerialResponse::List { ports: pns });
+    self.send_message(&sub_id,
+                      resp.unwrap_or(SerialResponse::Error {
+                                       display: "".to_string(),
+                                       description: "".to_string(),
+                                     }));
+    Ok(SerialResponse::Ok { msg: "Derp".to_string() })
   }
 
   /// Handle close port requests
