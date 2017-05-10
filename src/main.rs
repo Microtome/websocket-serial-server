@@ -261,20 +261,20 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
 
 }
 
-  fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
-    let error = e::to_serial_response_error(error);
-    serde_json::to_string(&error)
-      .map_err(|err| e::ErrorKind::Json(err))
-      .map(|json| Message::text(json))
-      .map(|msg| {
-             sender
-               .send_message::<Message, _>(&msg)
-               .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
-           })
-      .unwrap_or_else(|_| {
-                        warn!("{}: Problem sending bad json error response", sub_id);
-                        Ok(())
-                      })
-      .is_ok(); // This shouldn't be needed?
+fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
+  let error = e::to_serial_response_error(error);
+  serde_json::to_string(&error)
+    .map_err(|err| e::ErrorKind::Json(err))
+    .map(|json| Message::text(json))
+    .map(|msg| {
+           sender
+             .send_message::<Message, _>(&msg)
+             .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
+         })
+    .unwrap_or_else(|_| {
+                      warn!("{}: Problem sending bad json error response", sub_id);
+                      Ok(())
+                    })
+    .is_ok(); // This shouldn't be needed?
 
-  }
+}
