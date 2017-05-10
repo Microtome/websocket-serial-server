@@ -1,3 +1,10 @@
+//! 
+//! WebSocket Serial Server
+//! 
+//! WebSocket Serial Server is a program that allows
+//! that allows browsers to access serial ports
+//! on localhost
+
 // `error_chain!` can recurse deeply
 #![recursion_limit = "1024"]
 
