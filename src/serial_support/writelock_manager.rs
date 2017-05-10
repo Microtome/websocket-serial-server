@@ -87,3 +87,96 @@ impl WriteLockManager {
     Ok(())
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn check_not_locked_by_anyone(wl_manager: &WriteLockManager,
+                                port: &String,
+                                sub_ids: Vec<&String>) {
+    for sub_id in sub_ids.iter() {
+      assert_eq!(false,
+                 wl_manager.is_port_write_locked_by(port, sub_id),
+                 "Port '{}' should not be locked by '{}'",
+                 port,
+                 sub_id);
+      assert_eq!(false,
+                 wl_manager.is_port_locked_by_someone_else(port, sub_id),
+                 "Port '{}' should not be locked by someone else",
+                 port);
+
+    }
+  }
+
+  fn check_locked_by_sub(wl_manager: &WriteLockManager,
+                         port: &String,
+                         sub_locker: &String,
+                         sub_ids: Vec<&String>) {
+    assert_eq!(true,
+               wl_manager.is_port_write_locked_by(port, sub_locker),
+               "Port '{}' should not be locked by '{}'",
+               port,
+               sub_locker);
+    for sub_id in sub_ids.iter() {
+      assert_eq!(true,
+                 wl_manager.is_port_locked_by_someone_else(port, sub_id),
+                 "Port '{}' should not be locked by someone else",
+                 port);
+    }
+  }
+
+
+  #[test]
+  fn test_locking() {
+    let wl_manager = &mut WriteLockManager::new();
+    let sub_id1: String = "SUB_ID1".to_owned();
+    let sub_id3: String = "SUB_ID2".to_owned();
+    let sub_id2: String = "SUB_ID3".to_owned();
+    let port: String = "/dev/TTY_USB".to_owned();
+    // Ports should not be locked
+    check_not_locked_by_anyone(&wl_manager, &port, vec![&sub_id1, &sub_id2, &sub_id3]);
+    // sub_id1 locking a port should work
+    assert_eq!(true,
+               wl_manager
+                 .lock_port(&port, &sub_id1)
+                 .map(|_| true)
+                 .unwrap_or(false),
+               "Sub_id '{}' locking port '{}' should succeed",
+               sub_id1,
+               port);
+    //Port should now be locked by sub_id1
+    check_locked_by_sub(&wl_manager, &port, &sub_id1, vec![&sub_id2, &sub_id3]);
+    // sub_id2 should fail locking port already locked
+    assert_eq!(true,
+               wl_manager
+                 .lock_port(&port, &sub_id2)
+                 .map(|_| false)
+                 .unwrap_or(true),
+               "Sub_id '{}' locking port '{}' should fail",
+               sub_id1,
+               port);
+    // sub_id2 should fail unlocking port locked by sub_id1
+    assert_eq!(true,
+               wl_manager
+                 .unlock_port(&port, &sub_id2)
+                 .map(|_| false)
+                 .unwrap_or(true),
+               "Sub_id '{}' unlocking port '{}' should fail",
+               sub_id1,
+               port);
+    // sub_id1 should be able to unlock it
+    assert_eq!(true,
+               wl_manager
+                 .unlock_port(&port, &sub_id1)
+                 .map(|_| true)
+                 .unwrap_or(false),
+               "Sub_id '{}' unlocking port '{}' should succeed",
+               sub_id1,
+               port);
+    // Ports should not be locked
+    check_not_locked_by_anyone(&wl_manager, &port, vec![&sub_id1, &sub_id2, &sub_id3]);
+    // TODO: Finish testing all other methods
+  }
+
+}
