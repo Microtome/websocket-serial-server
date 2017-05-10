@@ -113,10 +113,12 @@ impl SubscriptionManager {
     self
       .subscriptions
       .entry(sub.sub_id)
-      .or_insert(Subscription {
-                   subscriber: sub.subscriber,
-                   ports: Vec::new(),
-                 });
+      .or_insert(
+        Subscription {
+          subscriber: sub.subscriber,
+          ports: Vec::new(),
+        },
+      );
   }
 
   /// Check if subscription exists, otherwise return error
@@ -161,9 +163,11 @@ impl SubscriptionManager {
 
   /// Broadcast message to all subscribers registered for a given port
   pub fn broadcast_message_for_port(&self, port_name: &String, msg: SerialResponse) -> Vec<Error> {
-    debug!("Broadcasting '{}' to all subscribers registered on port {}",
-           &msg,
-           port_name);
+    debug!(
+      "Broadcasting '{}' to all subscribers registered on port {}",
+      &msg,
+      port_name
+    );
     let mut res = Vec::new();
     for (sub_id, sub) in self.subscriptions.iter() {
       if sub

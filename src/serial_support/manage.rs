@@ -35,9 +35,10 @@ pub struct Manager {
 
 impl Manager {
   ///Constructor
-  pub fn new(receiver: Receiver<(String, SerialRequest)>,
-             subsc_receiver: SubscReceiver)
-             -> Manager {
+  pub fn new(
+    receiver: Receiver<(String, SerialRequest)>,
+    subsc_receiver: SubscReceiver,
+  ) -> Manager {
     Manager {
       writelock_manager: WriteLockManager::new(),
       port_manager: PortManager::new(),
@@ -48,9 +49,10 @@ impl Manager {
   }
 
   ///Spawn an instance in a new thread.
-  pub fn spawn(receiver: Receiver<(String, SerialRequest)>,
-               subsc_receiver: SubscReceiver)
-               -> thread::JoinHandle<()> {
+  pub fn spawn(
+    receiver: Receiver<(String, SerialRequest)>,
+    subsc_receiver: SubscReceiver,
+  ) -> thread::JoinHandle<()> {
     thread::spawn(move || { Manager::new(receiver, subsc_receiver).run(); })
   }
 
@@ -179,12 +181,13 @@ impl Manager {
   }
 
   /// Handle write port requests
-  fn handle_write_port(&mut self,
-                       sub_id: &String,
-                       port_name: String,
-                       data: String,
-                       base_64: bool)
-                       -> Result<()> {
+  fn handle_write_port(
+    &mut self,
+    sub_id: &String,
+    port_name: String,
+    data: String,
+    base_64: bool,
+  ) -> Result<()> {
     self.check_sub_id(&sub_id)?;
     self.check_owns_writelock(&port_name, &sub_id)?;
     match base_64 {
@@ -192,23 +195,13 @@ impl Manager {
         base64::decode(&data)
           .map_err(|e| ErrorKind::Base64(e).into())
           .and_then(|d| self.port_manager.write_port(&port_name, &d))
-          .map(|_| {
-                 self.send_message(&sub_id,
-                                   SerialResponse::Wrote {
-                                     port: port_name
-                                   })
-               })
+          .map(|_| self.send_message(&sub_id, SerialResponse::Wrote { port: port_name }),)
       }
       false => {
         self
           .port_manager
           .write_port(&port_name, data.as_bytes())
-          .map(|_| {
-                 self.send_message(&sub_id,
-                                   SerialResponse::Wrote {
-                                     port: port_name
-                                   })
-               })
+          .map(|_| self.send_message(&sub_id, SerialResponse::Wrote { port: port_name }),)
       }
     }
   }
@@ -219,38 +212,38 @@ impl Manager {
     self
       .writelock_manager
       .lock_port(&port_name, &sub_id)
-      .map(|_| {
-             self.send_message(&sub_id,
-                               SerialResponse::WriteLocked {
-                                 port: port_name
-                               })
-           })
+      .map(|_| self.send_message(&sub_id, SerialResponse::WriteLocked { port: port_name }),)
   }
 
   /// Handle write requests
-  fn handle_release_write_lock(&mut self,
-                               sub_id: &String,
-                               port_name: Option<String>)
-                               -> Result<()> {
+  fn handle_release_write_lock(
+    &mut self,
+    sub_id: &String,
+    port_name: Option<String>,
+  ) -> Result<()> {
     self.check_sub_id(sub_id)?;
     match port_name {
       None => {
         self.writelock_manager.unlock_all_ports_for_sub(&sub_id);
-        Ok(self.send_message(&sub_id,
-                             SerialResponse::WriteLockReleased {
-                               port: port_name
-                             }))
+        Ok(
+          self.send_message(
+            &sub_id,
+            SerialResponse::WriteLockReleased { port: port_name },
+          ),
+        )
       }
       Some(port_name) => {
         self
           .writelock_manager
           .unlock_port(&port_name, &sub_id)
-          .map(|_| {
-                 self.send_message(&sub_id, 
-                 SerialResponse::WriteLockReleased {
-                               port: Some(port_name)
-                             })
-               })
+          .map(
+            |_| {
+              self.send_message(
+                &sub_id,
+                SerialResponse::WriteLockReleased { port: Some(port_name) },
+              )
+            },
+          )
       }
     }
   }
@@ -262,10 +255,7 @@ impl Manager {
     self
       .sub_manager
       .add_port(&sub_id, &port_name)
-      .map(|_| {
-             self.send_message(&sub_id,
-                               SerialResponse::Opened{port:port_name})
-           })
+      .map(|_| self.send_message(&sub_id, SerialResponse::Opened { port: port_name }),)
   }
 
   /// Handle list ports request
@@ -277,11 +267,15 @@ impl Manager {
         .list_ports()
         .map(|v| v.iter().map(|v| v.port_name.clone()).collect());
     let resp = port_names.map(|pns| SerialResponse::List { ports: pns });
-    self.send_message(&sub_id,
-                      resp.unwrap_or(SerialResponse::Error {
-                                       display: "".to_string(),
-                                       description: "".to_string(),
-                                     }));
+    self.send_message(
+      &sub_id,
+      resp.unwrap_or(
+        SerialResponse::Error {
+          display: "".to_string(),
+          description: "".to_string(),
+        },
+      ),
+    );
     Ok(())
   }
 
@@ -318,8 +312,10 @@ impl Manager {
       // Tell everyone port is sick
       let err_resp = SerialResponse::Error {
         display: format!("Error reading from port '{}', closing!", port_name),
-        description: format!("An error occured while trying to read data from '{}'",
-                             port_name),
+        description: format!(
+          "An error occured while trying to read data from '{}'",
+          port_name
+        ),
       };
       self.broadcast_message_for_port(port_name, err_resp);
       // Tesll everyone the sick ports were closed

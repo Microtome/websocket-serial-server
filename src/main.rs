@@ -1,6 +1,6 @@
-//! 
+//!
 //! WebSocket Serial Server
-//! 
+//!
 //! WebSocket Serial Server is a program that allows
 //! that allows browsers to access serial ports
 //! on localhost
@@ -90,17 +90,27 @@ fn main() {
   Manager::spawn(sreq_rx, sub_rx);
 
   // Start listening for http connections
-  thread::spawn(move || {
-                  let http_server = HttpServer::http(format!("127.0.0.1:{}", port)).
-                  expect(&format!("Failed to create http server on port {}",port));
-                  http_server
-                    .handle(http_handler)
-                    .expect(&"Failed to listen");
-                });
+  thread::spawn(
+    move || {
+      let http_server = HttpServer::http(format!("127.0.0.1:{}", port)).expect(
+        &format!(
+          "Failed to create http server on port {}",
+          port
+        ),
+      );
+      http_server
+        .handle(http_handler)
+        .expect(&"Failed to listen");
+    },
+  );
 
   // Start listening for WebSocket connections
-  let ws_server = Server::bind(format!("127.0.0.1:{}", ws_port)).
-  expect(&format!("Failed bind on websocket port {}",ws_port));
+  let ws_server = Server::bind(format!("127.0.0.1:{}", ws_port)).expect(
+    &format!(
+      "Failed bind on websocket port {}",
+      ws_port
+    ),
+  );
 
   for connection in ws_server.filter_map(Result::ok) {
     // Spawn a new thread for each connection.
@@ -110,15 +120,19 @@ fn main() {
   }
 }
 
-fn spawn_ws_handler(sub_tx_clone: Sender<SubscriptionRequest>,
-                    sreq_tx_clone: Sender<(String, SerialRequest)>,
-                    connection: WsUpgrade<TcpStream>) {
-  thread::spawn(move || ws_handler(&sub_tx_clone, &sreq_tx_clone, connection));
+fn spawn_ws_handler(
+  sub_tx_clone: Sender<SubscriptionRequest>,
+  sreq_tx_clone: Sender<(String, SerialRequest)>,
+  connection: WsUpgrade<TcpStream>,
+) {
+  thread::spawn(move || ws_handler(&sub_tx_clone, &sreq_tx_clone, connection),);
 }
 
-fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
-              sreq_tx: &Sender<(String, SerialRequest)>,
-              connection: WsUpgrade<TcpStream>) {
+fn ws_handler(
+  sub_tx: &Sender<SubscriptionRequest>,
+  sreq_tx: &Sender<(String, SerialRequest)>,
+  connection: WsUpgrade<TcpStream>,
+) {
 
   // Set up subscription id
   // let ts = SystemTime::now() - UNIX_EPOCH
@@ -145,10 +159,12 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
 
   // Register sub_id with manager
   sub_tx
-    .send(SubscriptionRequest {
-            sub_id: sub_id.clone(),
-            subscriber: sub_resp_tx,
-          })
+    .send(
+      SubscriptionRequest {
+        sub_id: sub_id.clone(),
+        subscriber: sub_resp_tx,
+      },
+    )
     .expect(&format!("{}: Registering with manager failed.", sub_id));
 
   let client = connection
@@ -189,11 +205,15 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
             // Send close request to cleanup resources
             sreq_tx
               .send((sub_id.clone(), SerialRequest::Close { port: None }))
-              .unwrap_or_else(|e| {
-                                warn!("Client exit cleanup failed for sub_id '{}', cause '{}'",
-                                      sub_id,
-                                      e)
-                              });
+              .unwrap_or_else(
+                |e| {
+                  warn!(
+                    "Client exit cleanup failed for sub_id '{}', cause '{}'",
+                    sub_id,
+                    e
+                  )
+                },
+              );
             info!("{}: Client {} disconnected", sub_id, ip);
             exit = true;
           }
@@ -248,13 +268,17 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
             // Do I misunderstand unwrap_or?
             sender
               .send_message(&reply)
-              .unwrap_or_else(|e| {
-                                info!("{}: Could not send message '{}' to client '{}', cause '{}'",
-                                      sub_id,
-                                      json,
-                                      ip,
-                                      e)
-                              });
+              .unwrap_or_else(
+                |e| {
+                  info!(
+                    "{}: Could not send message '{}' to client '{}', cause '{}'",
+                    sub_id,
+                    json,
+                    ip,
+                    e
+                  )
+                },
+              );
           }
           Err(_) => {}
         }
@@ -273,15 +297,19 @@ fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, e
   serde_json::to_string(&error)
     .map_err(|err| e::ErrorKind::Json(err))
     .map(|json| Message::text(json))
-    .map(|msg| {
-           sender
-             .send_message::<Message, _>(&msg)
-             .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
-         })
-    .unwrap_or_else(|_| {
-                      warn!("{}: Problem sending bad json error response", sub_id);
-                      Ok(())
-                    })
+    .map(
+      |msg| {
+        sender
+          .send_message::<Message, _>(&msg)
+          .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
+      },
+    )
+    .unwrap_or_else(
+      |_| {
+        warn!("{}: Problem sending bad json error response", sub_id);
+        Ok(())
+      },
+    )
     .is_ok(); // This shouldn't be needed?
 
 }

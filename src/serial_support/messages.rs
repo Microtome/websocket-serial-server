@@ -40,8 +40,10 @@ pub enum SerialRequest {
 
 impl fmt::Display for SerialRequest {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let json = serde_json::to_string(self).unwrap_or("Display SerialRequest: Serialization Failed!"
-                                                       .to_string());
+    let json = serde_json::to_string(self).unwrap_or(
+      "Display SerialRequest: Serialization Failed!"
+        .to_string(),
+    );
     write!(f, "{}", json)
   }
 }
@@ -68,7 +70,7 @@ pub enum SerialResponse {
   Ok { msg: String },
   /// We don't echo data back
   /// TODO: Return hash of data written?
-  Wrote{ port: String },
+  Wrote { port: String },
   /// Port was successfully write locked
   WriteLocked { port: String },
   /// Lock on port(s) successfully released
@@ -126,8 +128,10 @@ pub struct UsbPortInfoDef {
 
 impl fmt::Display for SerialResponse {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let json = serde_json::to_string(self).unwrap_or("Display SerialResponse: Serialization Failed!"
-                                                       .to_string());
+    let json = serde_json::to_string(self).unwrap_or(
+      "Display SerialResponse: Serialization Failed!"
+        .to_string(),
+    );
     write!(f, "{}", json)
   }
 }

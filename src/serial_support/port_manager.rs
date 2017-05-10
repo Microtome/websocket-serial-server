@@ -123,8 +123,10 @@ impl PortManager {
           if bytes_read == 0 {
             // EOF
             info!("Received EOF reading from port {}", port_name);
-            map.insert(port_name.to_string(),
-                       Err(ErrorKind::PortEOFError(port_name.clone()).into()));
+            map.insert(
+              port_name.to_string(),
+              Err(ErrorKind::PortEOFError(port_name.clone()).into()),
+            );
           } else {
             let bytes = buffer[0..bytes_read].to_vec();
             map.insert(port_name.to_string(), Ok(bytes));
