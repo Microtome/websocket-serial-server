@@ -66,6 +66,13 @@ pub enum SerialResponse {
   Opened { port: String },
   /// Command successful
   Ok { msg: String },
+  /// We don't echo data back
+  /// TODO: Return hash of data written?
+  Wrote{ port: String },
+  /// Port was successfully write locked
+  WriteLocked { port: String },
+  /// Lock on port(s) successfully released
+  WriteLockReleased { port: Option<String> },
   /// List serial ports response
   List { ports: Vec<String> },
 }

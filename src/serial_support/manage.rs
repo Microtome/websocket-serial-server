@@ -194,7 +194,9 @@ impl Manager {
           .and_then(|d| self.port_manager.write_port(&port_name, &d))
           .map(|_| {
                  self.send_message(&sub_id,
-                                   SerialResponse::Ok { msg: "Write successful".to_string() })
+                                   SerialResponse::Wrote {
+                                     port: port_name
+                                   })
                })
       }
       false => {
@@ -203,7 +205,9 @@ impl Manager {
           .write_port(&port_name, data.as_bytes())
           .map(|_| {
                  self.send_message(&sub_id,
-                                   SerialResponse::Ok { msg: "Write successful".to_string() })
+                                   SerialResponse::Wrote {
+                                     port: port_name
+                                   })
                })
       }
     }
@@ -217,8 +221,8 @@ impl Manager {
       .lock_port(&port_name, &sub_id)
       .map(|_| {
              self.send_message(&sub_id,
-                               SerialResponse::Ok {
-                                 msg: format!("Locking port {} succeeded", port_name).to_string(),
+                               SerialResponse::WriteLocked {
+                                 port: port_name
                                })
            })
   }
@@ -233,8 +237,8 @@ impl Manager {
       None => {
         self.writelock_manager.unlock_all_ports_for_sub(&sub_id);
         Ok(self.send_message(&sub_id,
-                             SerialResponse::Ok {
-                               msg: "Unlocking all ports locked by client succeeded".to_string(),
+                             SerialResponse::WriteLockReleased {
+                               port: port_name
                              }))
       }
       Some(port_name) => {
@@ -242,11 +246,10 @@ impl Manager {
           .writelock_manager
           .unlock_port(&port_name, &sub_id)
           .map(|_| {
-                 self.send_message(&sub_id,
-                                   SerialResponse::Ok {
-                                     msg: format!("Locking port {} succeeded", port_name)
-                                       .to_string(),
-                                   })
+                 self.send_message(&sub_id, 
+                 SerialResponse::WriteLockReleased {
+                               port: Some(port_name)
+                             })
                })
       }
     }
@@ -261,9 +264,7 @@ impl Manager {
       .add_port(&sub_id, &port_name)
       .map(|_| {
              self.send_message(&sub_id,
-                               SerialResponse::Ok {
-                                 msg: format!("Opening port {} succeeded", port_name).to_string(),
-                               })
+                               SerialResponse::Opened{port:port_name})
            })
   }
 
