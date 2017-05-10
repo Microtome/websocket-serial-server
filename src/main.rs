@@ -47,6 +47,11 @@ use serial_support::manage::Manager;
 use serial_support::messages::*;
 use serial_support::errors as e;
 
+// Max number of failures we allow when trying to send
+// data to client before exiting
+// TODO: Make configurable
+const MAX_SEND_ERROR_COUNT: u32 = 5;
+
 fn main() {
 
   // Init logger
@@ -70,7 +75,10 @@ fn main() {
   let ws_port = port + 1;
 
   // html file for landing page
-  let websocket_html = include_str!("websockets.html").replace("__WS_PORT__ = 8080",&format!("__WS_PORT__ = {}",ws_port));
+  let websocket_html = include_str!("websockets.html").replace(
+    "__WS_PORT__ = 8081",
+    &format!("__WS_PORT__ = {}", ws_port),
+  );
 
   // The HTTP server handler
   let http_handler = move |_: Request, response: Response<Fresh>| {
@@ -112,6 +120,8 @@ fn main() {
     ),
   );
 
+  // Continuously iterate over connections,
+  // spawning handlers
   for connection in ws_server.filter_map(Result::ok) {
     // Spawn a new thread for each connection.
     let sub_tx_clone = sub_tx.clone();
@@ -120,6 +130,8 @@ fn main() {
   }
 }
 
+
+/// Spawn a websocket handler into its own thread
 fn spawn_ws_handler(
   sub_tx_clone: Sender<SubscriptionRequest>,
   sreq_tx_clone: Sender<(String, SerialRequest)>,
@@ -128,6 +140,8 @@ fn spawn_ws_handler(
   thread::spawn(move || ws_handler(&sub_tx_clone, &sreq_tx_clone, connection),);
 }
 
+
+/// Websocket handler
 fn ws_handler(
   sub_tx: &Sender<SubscriptionRequest>,
   sreq_tx: &Sender<(String, SerialRequest)>,
@@ -185,13 +199,11 @@ fn ws_handler(
     .split()
     .expect(&format!("{}: WS client error", sub_id));
 
-  // TODO Check thread cleanup
-  // The new WS Client thread msg loop
-  let mut exit = false;
+  let mut send_error_count = 0;
 
   let sleep_dur = Duration::from_millis(33);
 
-  while !exit {
+  'msg_loop: loop {
     // Try and read a WS message
     match receiver.recv_message::<Message, _, _>() {
       Ok(message) => {
@@ -215,7 +227,7 @@ fn ws_handler(
                 },
               );
             info!("{}: Client {} disconnected", sub_id, ip);
-            exit = true;
+            break 'msg_loop;
           }
 
           Type::Ping => {
@@ -264,12 +276,11 @@ fn ws_handler(
         match serde_json::to_string(&resp) {
           Ok(json) => {
             let reply = Message::text(json.clone());
-            // Weird, but message sending dose work
-            // Do I misunderstand unwrap_or?
             sender
               .send_message(&reply)
               .unwrap_or_else(
                 |e| {
+                  send_error_count += 1;
                   info!(
                     "{}: Could not send message '{}' to client '{}', cause '{}'",
                     sub_id,
@@ -285,6 +296,12 @@ fn ws_handler(
       }
       _ => { /*Logging*/ }
     };
+
+    if send_error_count > MAX_SEND_ERROR_COUNT {
+      warn!("{}: Client send error count exceeded! Shutting down msg loop.",&sub_id);
+      break 'msg_loop;
+    }
+
     thread::sleep(sleep_dur);
   }
 
