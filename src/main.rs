@@ -259,6 +259,8 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
 
   info!("Thread {} exiting!", sub_id);
 
+}
+
   fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
     let error = e::to_serial_response_error(error);
     serde_json::to_string(&error)
@@ -276,5 +278,3 @@ fn ws_handler(sub_tx: &Sender<SubscriptionRequest>,
       .is_ok(); // This shouldn't be needed?
 
   }
-
-}
