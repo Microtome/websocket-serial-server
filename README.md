@@ -37,6 +37,8 @@ if it looks like things are wedged
 totally go south
 * [x] Remove sub_id from SerialRequest and send it as tuple
 with sub_id to handler method
+* [ ] Use something like Rustache to manage the html template? That
+way brackets don't need doubling up.
 
 
 ## Limitations
