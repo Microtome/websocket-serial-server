@@ -7,20 +7,21 @@
 	</head>
 	<body>
 		<script>
-			var socket = new WebSocket("ws://127.0.0.1:{ws_port}", "websocket-serial-json");
-			socket.onmessage = function (event) {{
+			var __WS_PORT__ = 8081;
+			var socket = new WebSocket("ws://127.0.0.1:${wsp}".replace("${wsp}",__WS_PORT__), "websocket-serial-json");
+			socket.onmessage = function (event) {
 				var received = document.getElementById("received");
 				var br = document.createElement("BR");
 				var text = document.createTextNode(event.data);
 				received.appendChild(br);
 				received.appendChild(text);
-			}};
+			};
 			
-			function send(element) {{
+			function send(element) {
 				var input = document.getElementById(element);
 				socket.send(input.value);
 				input.value = "";
-			}}
+			}
 		</script>
 			<form onsubmit="send('message'); return false">
 				<textarea id="message" cols="80" rows="10"></textarea>

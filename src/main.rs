@@ -70,7 +70,7 @@ fn main() {
   let ws_port = port + 1;
 
   // html file for landing page
-  let websocket_html = format!(include_str!("websockets.html"), ws_port = ws_port);
+  let websocket_html = include_str!("websockets.html").replace("__WS_PORT__ = 8080",&format!("__WS_PORT__ = {}",ws_port));
 
   // The HTTP server handler
   let http_handler = move |_: Request, response: Response<Fresh>| {
