@@ -228,6 +228,7 @@ impl Manager {
                                sub_id: &String,
                                port_name: Option<String>)
                                -> Result<()> {
+    self.check_sub_id(sub_id)?;
     match port_name {
       None => {
         self.writelock_manager.unlock_all_ports_for_sub(&sub_id);
