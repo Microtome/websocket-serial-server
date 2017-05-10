@@ -1,34 +1,116 @@
 <!DOCTYPE html>
 <!-- This file is inlined and stored in the final binary -->
 <html>
-	<head>
-		<meta charset="utf-8">
-		<title>WebSocket Test</title>
-	</head>
-	<body>
-		<script>
-			var __WS_PORT__ = 8081;
-			var socket = new WebSocket("ws://127.0.0.1:${wsp}".replace("${wsp}",__WS_PORT__), "websocket-serial-json");
-			socket.onmessage = function (event) {
-				var received = document.getElementById("received");
-				var br = document.createElement("BR");
-				var text = document.createTextNode(event.data);
-				received.appendChild(br);
-				received.appendChild(text);
-			};
-			
-			function send(element) {
-				var input = document.getElementById(element);
-				socket.send(input.value);
-				input.value = "";
+
+<head>
+	<meta charset="utf-8">
+	<title>WebSocket Test</title>
+	<style>
+		* {
+			font-family: sans-serif;
+			box-sizing: border-box;
+		}
+
+		.container {
+			display: flex;
+		}
+
+		.flex-row {
+			flex-flow: row nowrap;
+			align-items: stretch;
+		}
+
+		textarea {
+			margin: 5px;
+		}
+
+		#data {
+			flex-grow: 2;
+		}
+
+		#log {
+			flex-grow: 1;
+		}
+
+		p#received {
+			height: 400px;
+		}
+
+		.log {
+			margin: 5px;
+			overflow-y: scroll;
+			overflow-x: scroll;
+		}
+
+		.messaging {
+			height: 300px;
+		}
+	</style>
+</head>
+
+<body>
+	<script>
+		let __WS_PORT__ = 8081;
+		let socket = new WebSocket("ws://127.0.0.1:${wsp}".replace("${wsp}", __WS_PORT__), "websocket-serial-json");
+
+		// Websocket message handler
+		socket.onmessage = (event) => {
+
+			try {
+				let obj = JSON.parse(event.data);
+				console.log(obj);
+				// if (obj["Read"] !== undefined) {
+					let received = document.getElementById("received");
+					let br = document.createElement("BR");
+					let text = document.createTextNode(event.data);
+					received.insertBefore(br, received.firstChild);
+					received.insertBefore(text, received.firstChild);
+				// } else {
+				// 	console.log("DERP!");
+				// 	let log = document.getElementById("log");
+				// 	let br = document.createElement("BR");
+				// 	let text = document.createTextNode(event.data);
+				// 	log.insertBefore(br, received.firstChild);
+				// 	log.insertBefore(text, received.firstChild);
+				// }
+			} catch (e) {
+
 			}
-		</script>
-			<form onsubmit="send('message'); return false">
-				<textarea id="message" cols="80" rows="10"></textarea>
-				<input type="submit" value="Send">
-			</form>
-			<p id="received">
-				<strong>Received Messages:</strong>
-			</p>
-	</body>
+		};
+
+
+
+		// Send 
+		function writeData(event) {
+			var input = document.getElementById("data");
+			console.log(input);
+			socket.send(input.value);
+			input.value = "";
+			return false;
+		}
+	</script>
+	<button>List Ports</button>
+	<br>
+	<br>
+	<label>Serial Port:&nbsp;<input type="text" id="serialPort"></label>
+	<button type="button" onclick="openPort(event)">Open</button>
+	<button type="button" onclick="closePort(event)">Close</button>
+	<button type="button" onclick="lockPort(event)">Write Lock</button>
+	<button type="button" onclick="unlockPort(event)">Release Lock</button>
+	<br>
+	<br>
+	<div class="container flex-row messaging">
+		<textarea id="data"></textarea>
+		<p class="log" id="log"></p>
+	</div>
+	<br>
+	<button type="button" onclick="writeData(event);">Write Data</button>
+	<br>
+	<br>
+	<strong>Read Data:</strong>
+
+	<p class="log" id="received">
+	</p>
+</body>
+
 </html>
