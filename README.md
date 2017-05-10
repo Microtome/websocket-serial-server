@@ -40,6 +40,8 @@ with sub_id to handler method
 * [ ] Use something like Rustache to manage the html template? That
 way brackets don't need doubling up.
 * [ ] Reduce the usage of String in favor of &str?
+* [ ] "Wrote" response message, should we return a hash of the data that was written
+so integrity can be verified?
 
 
 ## Limitations
