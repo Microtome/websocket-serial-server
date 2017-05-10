@@ -85,7 +85,7 @@ impl Manager {
             }
           }
         }
-        Ok(req) => self.handle_serial_request(req.0, req.1),
+        Ok(req) => self.handle_serial_request(&req.0, req.1),
       }
 
       // Check for new data on each port
@@ -155,7 +155,7 @@ impl Manager {
 
   /// Handles and dispatches SerialRequest sent by
   /// the channel
-  fn handle_serial_request(&mut self, sub_id: String, msg: SerialRequest) {
+  fn handle_serial_request(&mut self, sub_id: &String, msg: SerialRequest) {
     let response = match msg {
       SerialRequest::Open { port } => self.handle_open_port(sub_id, port),
       SerialRequest::WriteLock { port } => self.handle_write_lock(sub_id, port),
@@ -173,17 +173,18 @@ impl Manager {
       Err(e) => {
         warn!("Error '{}' occured handling serial request message", e);
         // Send error?
+        self.send_message(&sub_id,to_serial_response_error(e));
       }
     }
   }
 
   /// Handle write port requests
-  fn handle_write_port(&self,
-                       sub_id: String,
+  fn handle_write_port(&mut self,
+                       sub_id: &String,
                        port_name: String,
                        data: String,
                        base_64: bool)
-                       -> Result<SerialResponse> {
+                       -> Result<()> {
     self.check_sub_id(&sub_id)?;
     self.check_owns_writelock(&port_name, &sub_id)?;
     match base_64 {
@@ -191,43 +192,43 @@ impl Manager {
         base64::decode(&data)
           .map_err(|e| ErrorKind::Base64(e).into())
           .and_then(|d| self.port_manager.write_port(&port_name, &d))
-          .and(Ok(SerialResponse::Ok { msg: "Write successful".to_string() }))
+          .map(|_|self.send_message(&sub_id,SerialResponse::Ok { msg: "Write successful".to_string() }))
       }
       false => {
         self
           .port_manager
           .write_port(&port_name, data.as_bytes())
-          .and(Ok(SerialResponse::Ok { msg: "Write successful".to_string() }))
+          .map(|_|self.send_message(&sub_id,SerialResponse::Ok { msg: "Write successful".to_string() }))
       }
     }
   }
 
   /// Handle write lock requests
-  fn handle_write_lock(&mut self, sub_id: String, port_name: String) -> Result<SerialResponse> {
+  fn handle_write_lock(&mut self, sub_id: &String, port_name: String) -> Result<()> {
     self.check_sub_id(&sub_id)?;
     self
       .writelock_manager
       .lock_port(&port_name, &sub_id)
-      .and(Ok(SerialResponse::Ok {
+      .map(|_|self.send_message(&sub_id,SerialResponse::Ok {
                 msg: format!("Locking port {} succeeded", port_name).to_string(),
               }))
   }
 
   /// Handle write requests
   fn handle_release_write_lock(&mut self,
-                               sub_id: String,
+                               sub_id: &String,
                                port_name: Option<String>)
-                               -> Result<SerialResponse> {
+                               -> Result<()> {
     match port_name {
       None => {
         self.writelock_manager.unlock_all_ports_for_sub(&sub_id);
-        Ok(SerialResponse::Ok { msg: "Unlocking all ports locked by client succeeded".to_string() })
+        Ok(self.send_message(&sub_id,SerialResponse::Ok { msg: "Unlocking all ports locked by client succeeded".to_string() }))
       }
       Some(port_name) => {
         self
           .writelock_manager
           .unlock_port(&port_name, &sub_id)
-          .and(Ok(SerialResponse::Ok {
+          .map(|_|self.send_message(&sub_id,SerialResponse::Ok {
                     msg: format!("Locking port {} succeeded", port_name).to_string(),
                   }))
       }
@@ -235,19 +236,19 @@ impl Manager {
   }
 
   /// Handle open port requests
-  fn handle_open_port(&mut self, sub_id: String, port_name: String) -> Result<SerialResponse> {
+  fn handle_open_port(&mut self, sub_id: &String, port_name: String) -> Result<()> {
     self.check_sub_id(&sub_id)?;
     self.port_manager.open_port(&port_name)?;
     self
       .sub_manager
       .add_port(&sub_id, &port_name)
-      .and(Ok(SerialResponse::Ok {
+      .map(|_|self.send_message(&sub_id,SerialResponse::Ok {
                 msg: format!("Opening port {} succeeded", port_name).to_string(),
               }))
   }
 
   /// Handle list ports request
-  fn handle_list_ports(&mut self, sub_id: String) -> Result<SerialResponse> {
+  fn handle_list_ports(&mut self, sub_id: &String) -> Result<()> {
     self.check_sub_id(&sub_id)?;
     let port_names: Result<Vec<String>> =
       self
@@ -260,14 +261,14 @@ impl Manager {
                                        display: "".to_string(),
                                        description: "".to_string(),
                                      }));
-    Ok(SerialResponse::Ok { msg: "Derp".to_string() })
+    Ok(())
   }
 
   /// Handle close port requests
   fn handle_close_port(&mut self,
-                       sub_id: String,
+                       sub_id: &String,
                        port_name: Option<String>)
-                       -> Result<SerialResponse> {
+                       -> Result<()> {
     self.check_sub_id(&sub_id)?;
     // Unsubscribe from ports
     match port_name {
@@ -289,7 +290,7 @@ impl Manager {
       let close_resp = SerialResponse::Closed { port: port_to_close.clone() };
       self.send_message(&sub_id, close_resp);
     }
-    Ok(SerialResponse::Ok { msg: "Derp".to_string() })
+    Ok(())
   }
 
   /// Cleanup any bad ports
@@ -319,6 +320,7 @@ impl Manager {
   pub fn send_message(&mut self, sub_id: &String, msg: SerialResponse) {
     match self.sub_manager.send_message(sub_id, msg) {
       Err(e) => {
+        warn!("Error sending serial response to sub_id '{}'",sub_id);
         let mut bad_subs = Vec::new();
         bad_subs.push(e);
         self.cleanup_bad_subs(bad_subs);
