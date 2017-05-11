@@ -298,7 +298,10 @@ fn ws_handler(
     };
 
     if send_error_count > MAX_SEND_ERROR_COUNT {
-      warn!("{}: Client send error count exceeded! Shutting down msg loop.",&sub_id);
+      warn!(
+        "{}: Client send error count exceeded! Shutting down msg loop.",
+        &sub_id
+      );
       break 'msg_loop;
     }
 

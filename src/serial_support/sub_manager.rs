@@ -95,7 +95,7 @@ impl SubscriptionManager {
           Some(sub) => {
             sub.ports.clear();
           }
-          None => {},
+          None => {}
         }
       }
       None => {

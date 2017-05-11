@@ -287,19 +287,19 @@ impl Manager {
       None => {
         self.sub_manager.clear_ports(Some(&sub_id));
         Ok(())
-        },
-      Some(ref pn) => self.sub_manager.remove_port(&sub_id, &pn)
+      }
+      Some(ref pn) => self.sub_manager.remove_port(&sub_id, &pn),
     }?;
     // Remove write locks
     match port_name {
       None => {
         self.writelock_manager.unlock_all_ports_for_sub(sub_id);
         Ok(())
-      },
-      Some(ref pn) => self.writelock_manager.unlock_port(&pn, sub_id)
+      }
+      Some(ref pn) => self.writelock_manager.unlock_port(&pn, sub_id),
     }?;
     // TODO: Ensure close messages are sent, etc
-    
+
     // Close ports with no subscribers
     let open_ports = self.port_manager.open_ports();
     let subscribed_ports = self.sub_manager.subscribed_ports();
@@ -329,7 +329,7 @@ impl Manager {
       // Remove bad ports from subscriptions
       self.sub_manager.remove_port_from_all(port_name);
       // Tell everyone port is sick
-      let err_resp = to_serial_response_error(ErrorKind::PortReadError(port_name.to_owned()).into());
+      let err_resp = to_serial_response_error(ErrorKind::PortReadError(port_name.to_owned()).into(),);
       self.broadcast_message_for_port(port_name, err_resp);
       // Tesll everyone the sick ports were closed
       let close_resp = SerialResponse::Closed { port: port_name.clone() };
