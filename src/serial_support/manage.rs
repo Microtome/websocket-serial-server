@@ -322,24 +322,18 @@ impl Manager {
   /// Clears out the passed in hash set
   fn cleanup_bad_ports(&mut self, bad_ports: &HashSet<String>) {
     for port_name in bad_ports.iter() {
-      // Tell everyone port is sick
-      let err_resp = SerialResponse::Error {
-        display: format!("Error reading from port '{}', closing!", port_name),
-        description: format!(
-          "An error occured while trying to read data from '{}'",
-          port_name
-        ),
-      };
-      self.broadcast_message_for_port(port_name, err_resp);
-      // Tesll everyone the sick ports were closed
-      let close_resp = SerialResponse::Closed { port: port_name.clone() };
-      self.broadcast_message_for_port(port_name, close_resp);
       // Close bad ports
       self.port_manager.close_port(port_name);
       // Remove write locks on bad ports
       self.writelock_manager.clear_lock(port_name);
       // Remove bad ports from subscriptions
       self.sub_manager.remove_port_from_all(port_name);
+      // Tell everyone port is sick
+      let err_resp = to_serial_response_error(ErrorKind::PortReadError(port_name.to_owned()).into());
+      self.broadcast_message_for_port(port_name, err_resp);
+      // Tesll everyone the sick ports were closed
+      let close_resp = SerialResponse::Closed { port: port_name.clone() };
+      self.broadcast_message_for_port(port_name, close_resp);
     }
     // Clear set of bad_ports
   }
