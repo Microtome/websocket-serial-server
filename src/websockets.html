@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <!-- This file is inlined and stored in the final binary -->
+<!-- TODO: Add support for binary data -->
 <html>
 
 <head>
@@ -9,6 +10,7 @@
 		* {
 			font-family: sans-serif;
 			box-sizing: border-box;
+			font-size: 14px;
 		}
 
 		.container {
@@ -20,6 +22,11 @@
 			align-items: stretch;
 		}
 
+		.flex-col {
+			flex-flow: column nowrap;
+			align-items: stretch;
+		}
+
 		textarea {
 			margin: 5px;
 		}
@@ -28,7 +35,15 @@
 			flex-grow: 2;
 		}
 
-		#log {
+		#msgLogDiv {
+			flex-basis: 40%
+		}
+
+		.flex-grow0 {
+			flex-grow: 0;
+		}
+
+		.flex-grow1 {
 			flex-grow: 1;
 		}
 
@@ -38,12 +53,14 @@
 
 		.log {
 			margin: 5px;
-			overflow-y: scroll;
-			overflow-x: scroll;
 		}
 
 		.messaging {
 			height: 300px;
+		}
+
+		.scroll {
+			overflow: scroll;
 		}
 	</style>
 </head>
@@ -55,60 +72,137 @@
 
 		// Websocket message handler
 		socket.onmessage = (event) => {
-
 			try {
 				let obj = JSON.parse(event.data);
-				console.log(obj);
-				// if (obj["Read"] !== undefined) {
+				if (obj["Read"] !== undefined) {
 					let received = document.getElementById("received");
 					let br = document.createElement("BR");
 					let text = document.createTextNode(event.data);
 					received.insertBefore(br, received.firstChild);
 					received.insertBefore(text, received.firstChild);
-				// } else {
-				// 	console.log("DERP!");
-				// 	let log = document.getElementById("log");
-				// 	let br = document.createElement("BR");
-				// 	let text = document.createTextNode(event.data);
-				// 	log.insertBefore(br, received.firstChild);
-				// 	log.insertBefore(text, received.firstChild);
-				// }
+				} else {
+					let log = document.getElementById("msgLog");
+					let br = document.createElement("BR");
+					let text = document.createTextNode(event.data);
+					log.insertBefore(br, log.firstChild);
+					log.insertBefore(text, log.firstChild);
+				}
 			} catch (e) {
-
+				Console.log("Error handling ws message", e);
 			}
 		};
 
+		// Close Port
+		function closePort(event) {
+			let portName = document.getElementById("serialPort").value;
+			let msg = {
+				"Close": {
+					"port": portName
+				}
+			};
+			socket.send(JSON.stringify(msg));
+			return false;
+		}
 
+		// OpenPort 
+		function openPort(event) {
+			let portName = document.getElementById("serialPort").value;
+			let msg = {
+				"Open": {
+					"port": portName
+				}
+			};
+			socket.send(JSON.stringify(msg));
+			return false;
+		}
 
-		// Send 
+		// ListPorts 
+		function listPorts(event) {
+			let msg = {
+				"List": {}
+			};
+			socket.send(JSON.stringify(msg));
+			return false;
+		}
+
+		// LockPort
+		function lockPort(event) {
+			let portName = document.getElementById("serialPort").value;
+			let msg = {
+				"WriteLock": {
+					"port": portName
+				}
+			};
+			socket.send(JSON.stringify(msg));
+			return false;
+		}
+
+		// UnlockPort
+		function unlockPort(event) {
+			let portName = document.getElementById("serialPort").value;
+			let msg = {
+				"ReleaseWriteLock": {
+					"port": portName
+				}
+			};
+			socket.send(JSON.stringify(msg));
+			return false;
+		}
+
+		// WriteData 
 		function writeData(event) {
-			var input = document.getElementById("data");
-			console.log(input);
-			socket.send(input.value);
-			input.value = "";
+			let portName = document.getElementById("serialPort").value;
+			let data = document.getElementById("data").value;
+			let msg = {
+				"Write": {
+					"port": portName,
+					"data": data
+				}
+			}
+			socket.send(JSON.stringify(msg));
+			return false;
+		}
+
+		// Clear read data view 
+		function clearReadData(event) {
+			document.getElementById("received").innerHTML = '';
+			return false;
+		}
+
+		// Clear Msg Log 
+		function clearMsgLog(event) {
+			document.getElementById("msgLog").innerHTML = '';
 			return false;
 		}
 	</script>
-	<button>List Ports</button>
+	<button type="button" onclick="listPorts(event);">List Ports</button>
 	<br>
 	<br>
 	<label>Serial Port:&nbsp;<input type="text" id="serialPort"></label>
-	<button type="button" onclick="openPort(event)">Open</button>
-	<button type="button" onclick="closePort(event)">Close</button>
-	<button type="button" onclick="lockPort(event)">Write Lock</button>
-	<button type="button" onclick="unlockPort(event)">Release Lock</button>
+	<button type="button" onclick="openPort(event);">Open</button>
+	<button type="button" onclick="closePort(event);">Close</button>
+	<button type="button" onclick="lockPort(event);">Write Lock</button>
+	<button type="button" onclick="unlockPort(event);">Release Lock</button>
 	<br>
 	<br>
 	<div class="container flex-row messaging">
 		<textarea id="data"></textarea>
-		<p class="log" id="log"></p>
+		<div id="msgLogDiv" class="container flex-col">
+			<div class="flex-grow0">
+				<strong>Command Replies:</strong>&nbsp;
+				<button type="button" onclick="clearMsgLog(event);">Clear</button>
+			</div>
+			<div class="flex-grow1 scroll">
+				<p class="log" id="msgLog"></p>
+			</div>
+		</div>
 	</div>
 	<br>
 	<button type="button" onclick="writeData(event);">Write Data</button>
 	<br>
 	<br>
-	<strong>Read Data:</strong>
-
+	<strong>Data Read:</strong> &nbsp;
+	<button type="button" onclick="clearReadData();">Clear</button>
 	<p class="log" id="received">
 	</p>
 </body>
