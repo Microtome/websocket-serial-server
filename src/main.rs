@@ -152,7 +152,7 @@ fn ws_handler(
   // let ts = SystemTime::now() - UNIX_EPOCH
   let prefix: String = thread_rng().gen_ascii_chars().take(8).collect();
   let sub_id = format!("thread-{}-{}", prefix, rand::random::<u16>());
-  debug!("Spawned thread with subId '{}'", sub_id);
+  debug!("{}: spawned.", sub_id);
 
   if !connection
         .protocols()
@@ -305,7 +305,7 @@ fn ws_handler(
     thread::sleep(sleep_dur);
   }
 
-  info!("Thread {} exiting!", sub_id);
+  info!("{}: Shutting down!", sub_id);
 
 }
 
