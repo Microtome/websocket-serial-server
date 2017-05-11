@@ -88,22 +88,20 @@ impl SubscriptionManager {
   }
 
   /// Remove all ports from a single subscription or all subscriptions
-  pub fn clear_ports(&mut self, sub_id: Option<&String>) -> Result<()> {
+  pub fn clear_ports(&mut self, sub_id: Option<&String>) {
     match sub_id {
       Some(sid) => {
         match self.subscriptions.get_mut(sid) {
           Some(sub) => {
             sub.ports.clear();
-            Ok(())
           }
-          None => Err(ErrorKind::SubscriptionNotFound(sid.to_string()).into()),
+          None => {},
         }
       }
       None => {
         for (_, sub) in self.subscriptions.iter_mut() {
           sub.ports.clear();
         }
-        Ok(())
       }
     }
   }
