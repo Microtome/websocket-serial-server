@@ -284,9 +284,22 @@ impl Manager {
     self.check_sub_id(&sub_id)?;
     // Unsubscribe from ports
     match port_name {
-      None => self.sub_manager.clear_ports(Some(&sub_id)),
-      Some(pn) => self.sub_manager.remove_port(&sub_id, &pn),
+      None => {
+        self.sub_manager.clear_ports(Some(&sub_id));
+        Ok(())
+        },
+      Some(ref pn) => self.sub_manager.remove_port(&sub_id, &pn)
     }?;
+    // Remove write locks
+    match port_name {
+      None => {
+        self.writelock_manager.unlock_all_ports_for_sub(sub_id);
+        Ok(())
+      },
+      Some(ref pn) => self.writelock_manager.unlock_port(&pn, sub_id)
+    }?;
+    // TODO: Ensure close messages are sent, etc
+    
     // Close ports with no subscribers
     let open_ports = self.port_manager.open_ports();
     let subscribed_ports = self.sub_manager.subscribed_ports();
