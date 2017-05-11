@@ -38,7 +38,7 @@ impl WriteLockManager {
   /// return error
   pub fn check_owns_write_lock(&self, port_name: &String, sub_id: &String) -> Result<()> {
     match self.write_locks.get(port_name) {
-      None => Ok(()),
+      None => Err(ErrorKind::NeedWriteLock(port_name.to_string()).into()),
       Some(sid) => {
         if sid != sub_id {
           Err(ErrorKind::AlreadyWriteLocked(port_name.to_string()).into())
@@ -56,12 +56,16 @@ impl WriteLockManager {
 
   // Release the write lock for the given port and sub id
   pub fn unlock_port(&mut self, port_name: &String, sub_id: &String) -> Result<()> {
-    self.check_owns_write_lock(port_name, sub_id)?;
-    self.write_locks.remove(port_name);
-    Ok(())
+    match self.is_port_locked_by_someone_else(port_name, sub_id) {
+      false => {
+        self.write_locks.remove(port_name);
+        Ok(())
+      }
+      true => Err(ErrorKind::AlreadyWriteLocked(port_name.to_string()).into()),
+    }
   }
 
-  // Release the write lock for the given port and sub id
+  // Release all write locks held by this sub_id
   pub fn unlock_all_ports_for_sub(&mut self, sub_id: &String) {
     let mut to_delete = Vec::<String>::new();
     for port_name in self.write_locks.keys() {
@@ -80,11 +84,16 @@ impl WriteLockManager {
 
   // Try and lock the port
   pub fn lock_port(&mut self, port_name: &String, sub_id: &String) -> Result<()> {
-    self.check_owns_write_lock(port_name, sub_id)?;
-    self
-      .write_locks
-      .insert(port_name.to_string(), sub_id.to_string());
-    Ok(())
+    match self.is_port_locked_by_someone_else(port_name, sub_id) {
+      false => {
+        self
+          .write_locks
+          .insert(port_name.to_string(), sub_id.to_string());
+        Ok(())
+      }
+      true => Err(ErrorKind::AlreadyWriteLocked(port_name.to_string()).into()),
+    }
+
   }
 }
 
