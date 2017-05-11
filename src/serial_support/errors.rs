@@ -28,8 +28,8 @@ error_chain! {
       display("Subscription for id '{}' not found", sub_id)
     }
     AlreadyWriteLocked(port:String){
-      description("Port already write locked")
-      display("Open serial port '{}' is already write locked", port)
+      description("Port already write locked by another client")
+      display("Open serial port '{}' is already write locked by another client", port)
     }
     NeedWriteLock(port:String){
       description("Need write lock")
