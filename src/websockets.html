@@ -66,119 +66,10 @@
 </head>
 
 <body>
-	<script>
-		let __WS_PORT__ = 8081;
-		let socket = new WebSocket("ws://127.0.0.1:${wsp}".replace("${wsp}", __WS_PORT__), "websocket-serial-json");
-
-		// Websocket message handler
-		socket.onmessage = (event) => {
-			try {
-				let obj = JSON.parse(event.data);
-				if (obj["Read"] !== undefined) {
-					let received = document.getElementById("received");
-					let br = document.createElement("BR");
-					let text = document.createTextNode(event.data);
-					received.insertBefore(br, received.firstChild);
-					received.insertBefore(text, received.firstChild);
-				} else {
-					let log = document.getElementById("msgLog");
-					let br = document.createElement("BR");
-					let text = document.createTextNode(event.data);
-					log.insertBefore(br, log.firstChild);
-					log.insertBefore(text, log.firstChild);
-				}
-			} catch (e) {
-				Console.log("Error handling ws message", e);
-			}
-		};
-
-		// Close Port
-		function closePort(event) {
-			let portName = document.getElementById("serialPort").value;
-			let msg = {
-				"Close": {
-					"port": portName
-				}
-			};
-			socket.send(JSON.stringify(msg));
-			return false;
-		}
-
-		// OpenPort 
-		function openPort(event) {
-			let portName = document.getElementById("serialPort").value;
-			let msg = {
-				"Open": {
-					"port": portName
-				}
-			};
-			socket.send(JSON.stringify(msg));
-			return false;
-		}
-
-		// ListPorts 
-		function listPorts(event) {
-			let msg = {
-				"List": {}
-			};
-			socket.send(JSON.stringify(msg));
-			return false;
-		}
-
-		// LockPort
-		function lockPort(event) {
-			let portName = document.getElementById("serialPort").value;
-			let msg = {
-				"WriteLock": {
-					"port": portName
-				}
-			};
-			socket.send(JSON.stringify(msg));
-			return false;
-		}
-
-		// UnlockPort
-		function unlockPort(event) {
-			let portName = document.getElementById("serialPort").value;
-			let msg = {
-				"ReleaseWriteLock": {
-					"port": portName
-				}
-			};
-			socket.send(JSON.stringify(msg));
-			return false;
-		}
-
-		// WriteData 
-		function writeData(event) {
-			let portName = document.getElementById("serialPort").value;
-			let data = document.getElementById("data").value;
-			let msg = {
-				"Write": {
-					"port": portName,
-					"data": data
-				}
-			}
-			socket.send(JSON.stringify(msg));
-			return false;
-		}
-
-		// Clear read data view 
-		function clearReadData(event) {
-			document.getElementById("received").innerHTML = '';
-			return false;
-		}
-
-		// Clear Msg Log 
-		function clearMsgLog(event) {
-			document.getElementById("msgLog").innerHTML = '';
-			return false;
-		}
-	</script>
-	<button type="button" onclick="listPorts(event);">List Ports</button>
+	<button type="button" onclick="listPorts(event);">Refresh Ports</button>
 	<br>
 	<br>
-	<label>Serial Port:&nbsp;<input type="text" id="serialPort"></label>
+	<label>Serial Port:&nbsp;<select id="selectPort"></select></label>
 	<button type="button" onclick="openPort(event);">Open</button>
 	<button type="button" onclick="closePort(event);">Close</button>
 	<button type="button" onclick="lockPort(event);">Write Lock</button>
@@ -192,9 +83,7 @@
 				<strong>Command Replies:</strong>&nbsp;
 				<button type="button" onclick="clearMsgLog(event);">Clear</button>
 			</div>
-			<div class="flex-grow1 scroll">
-				<p class="log" id="msgLog"></p>
-			</div>
+			<p class="log scroll flex-grow1" id="msgLog"></p>
 		</div>
 	</div>
 	<br>
@@ -203,8 +92,157 @@
 	<br>
 	<strong>Data Read:</strong> &nbsp;
 	<button type="button" onclick="clearReadData();">Clear</button>
-	<p class="log" id="received">
+	<p class="log scroll" id="received">
 	</p>
 </body>
+<script>
+	let __WS_PORT__ = 8081;
+	let socket = new WebSocket("ws://127.0.0.1:${wsp}".replace("${wsp}", __WS_PORT__), "websocket-serial-json");
+
+	socket.onopen = (event) => {
+		listPorts();
+	}
+
+	// Websocket message handler
+	socket.onmessage = (event) => {
+		try {
+			let obj = JSON.parse(event.data);
+			if (obj["Read"] !== undefined) {
+				let received = document.getElementById("received");
+				let br = document.createElement("BR");
+				let text = document.createTextNode(event.data);
+				received.insertBefore(br, received.firstChild);
+				received.insertBefore(text, received.firstChild);
+			} else if (obj["List"]) {
+				let ports = obj["List"]["ports"];
+				updatePortList(ports);
+				// let log = document.getElementById("msgLog");
+				// let br = document.createElement("BR");
+				// let text = document.createTextNode(event.data);
+				// log.insertBefore(br, log.firstChild);
+				// log.insertBefore(text, log.firstChild);
+			} else {
+				let log = document.getElementById("msgLog");
+				let br = document.createElement("BR");
+				let text = document.createTextNode(event.data);
+				log.insertBefore(br, log.firstChild);
+				log.insertBefore(text, log.firstChild);
+			}
+		} catch (e) {
+			console.log("Error handling ws message", e);
+		}
+	};
+
+	// Close Port
+	function closePort(event) {
+		let portName = document.getElementById("serialPort").value;
+		let msg = {
+			"Close": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// OpenPort 
+	function openPort(event) {
+		let portName = document.getElementById("serialPort").value;
+		let msg = {
+			"Open": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// ListPorts 
+	function listPorts(event) {
+		let msg = {
+			"List": {}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// LockPort
+	function lockPort(event) {
+		let portName = document.getElementById("serialPort").value;
+		let msg = {
+			"WriteLock": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// UnlockPort
+	function unlockPort(event) {
+		let portName = document.getElementById("serialPort").value;
+		let msg = {
+			"ReleaseWriteLock": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// WriteData 
+	function writeData(event) {
+		let portName = document.getElementById("serialPort").value;
+		let data = document.getElementById("data").value;
+		let msg = {
+			"Write": {
+				"port": portName,
+				"data": data
+			}
+		}
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// Clear read data view 
+	function clearReadData(event) {
+		document.getElementById("received").innerHTML = '';
+		return false;
+	}
+
+	// Clear Msg Log 
+	function clearMsgLog(event) {
+		document.getElementById("msgLog").innerHTML = '';
+		return false;
+	}
+
+	function updatePortList(ports) {
+		console.log("PORTS:", ports);
+		let selectPort = document.getElementById("selectPort");
+		let selectedPort = getSelectedPort();
+		console.log(selectedPort);
+		selectPort.innerHTML = '';
+		ports.forEach((p) => {
+			let option = document.createElement("OPTION");
+			option.innerText = p;
+			option.value = p;
+			if (p === selectedPort) {
+				option.selected = true;
+			}
+			selectPort.appendChild(option);
+		});
+	}
+
+	function getSelectedPort(){
+		let selectPort = document.getElementById("selectPort");
+		let selectedPort = null;
+		if (selectPort.selectedIndex !== -1) {
+			selectedPort = selectPort.options[selectPort.selectedIndex].value
+		}		
+	}
+
+	// window.setTimeout(()=>listPorts(),500);
+
+</script>
 
 </html>
