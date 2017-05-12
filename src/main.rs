@@ -41,7 +41,7 @@ use hyper::Server as HttpServer;
 use hyper::net::Fresh;
 use hyper::server::request::Request;
 use hyper::server::response::Response;
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 
 use serial_support::manage::Manager;
 use serial_support::messages::*;
@@ -123,36 +123,38 @@ fn main() {
   // Continuously iterate over connections,
   // spawning handlers
   for connection in ws_server.filter_map(Result::ok) {
+    // Set up subscription id
+    // let ts = SystemTime::now() - UNIX_EPOCH
+    let prefix: String = thread_rng().gen_ascii_chars().take(8).collect();
+    let sub_id = format!("thread-{}-{}", prefix, rand::random::<u16>());
+    debug!("{}: spawned.", sub_id);
+
     // Spawn a new thread for each connection.
     let sub_tx_clone = sub_tx.clone();
     let sreq_tx_clone = sreq_tx.clone();
-    spawn_ws_handler(sub_tx_clone, sreq_tx_clone, connection);
+    spawn_ws_handler(sub_id, sub_tx_clone, sreq_tx_clone, connection);
   }
 }
 
 
 /// Spawn a websocket handler into its own thread
 fn spawn_ws_handler(
+  sub_id: String,
   sub_tx_clone: Sender<SubscriptionRequest>,
   sreq_tx_clone: Sender<(String, SerialRequest)>,
   connection: WsUpgrade<TcpStream>,
 ) {
-  thread::spawn(move || ws_handler(&sub_tx_clone, &sreq_tx_clone, connection),);
+  thread::spawn(move || ws_handler(sub_id, &sub_tx_clone, &sreq_tx_clone, connection));
 }
 
 
 /// Websocket handler
 fn ws_handler(
+  sub_id: String,
   sub_tx: &Sender<SubscriptionRequest>,
   sreq_tx: &Sender<(String, SerialRequest)>,
   connection: WsUpgrade<TcpStream>,
 ) {
-
-  // Set up subscription id
-  // let ts = SystemTime::now() - UNIX_EPOCH
-  let prefix: String = thread_rng().gen_ascii_chars().take(8).collect();
-  let sub_id = format!("thread-{}-{}", prefix, rand::random::<u16>());
-  debug!("{}: spawned.", sub_id);
 
   if !connection
         .protocols()
