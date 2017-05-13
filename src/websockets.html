@@ -129,13 +129,13 @@
 				log.insertBefore(text, log.firstChild);
 			}
 		} catch (e) {
-			console.log("Error handling ws message", e);
+			console.error("Error handling ws message", e, event);
 		}
 	};
 
 	// Close Port
 	function closePort(event) {
-		let portName = document.getElementById("serialPort").value;
+		let portName = getSelectedPort();
 		let msg = {
 			"Close": {
 				"port": portName
@@ -147,7 +147,7 @@
 
 	// OpenPort 
 	function openPort(event) {
-		let portName = document.getElementById("serialPort").value;
+		let portName = getSelectedPort();
 		let msg = {
 			"Open": {
 				"port": portName
@@ -168,7 +168,7 @@
 
 	// LockPort
 	function lockPort(event) {
-		let portName = document.getElementById("serialPort").value;
+		let portName = getSelectedPort();
 		let msg = {
 			"WriteLock": {
 				"port": portName
@@ -180,7 +180,7 @@
 
 	// UnlockPort
 	function unlockPort(event) {
-		let portName = document.getElementById("serialPort").value;
+		let portName = getSelectedPort();
 		let msg = {
 			"ReleaseWriteLock": {
 				"port": portName
@@ -192,7 +192,7 @@
 
 	// WriteData 
 	function writeData(event) {
-		let portName = document.getElementById("serialPort").value;
+		let portName = getSelectedPort();
 		let data = document.getElementById("data").value;
 		let msg = {
 			"Write": {
@@ -217,10 +217,10 @@
 	}
 
 	function updatePortList(ports) {
-		console.log("PORTS:", ports);
 		let selectPort = document.getElementById("selectPort");
 		let selectedPort = getSelectedPort();
 		console.log(selectedPort);
+		if (!!!selectedPort) return;
 		selectPort.innerHTML = '';
 		ports.forEach((p) => {
 			let option = document.createElement("OPTION");
@@ -233,12 +233,13 @@
 		});
 	}
 
-	function getSelectedPort(){
+	function getSelectedPort() {
 		let selectPort = document.getElementById("selectPort");
 		let selectedPort = null;
 		if (selectPort.selectedIndex !== -1) {
 			selectedPort = selectPort.options[selectPort.selectedIndex].value
-		}		
+		}
+		return selectedPort;
 	}
 
 	// window.setTimeout(()=>listPorts(),500);
