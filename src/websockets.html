@@ -107,21 +107,18 @@
 	socket.onmessage = (event) => {
 		try {
 			let obj = JSON.parse(event.data);
+			// console.log(event);
 			if (obj["Read"] !== undefined) {
 				let received = document.getElementById("received");
 				let br = document.createElement("BR");
 				let text = document.createTextNode(event.data);
 				received.insertBefore(br, received.firstChild);
 				received.insertBefore(text, received.firstChild);
-			} else if (obj["List"]) {
-				let ports = obj["List"]["ports"];
-				updatePortList(ports);
-				// let log = document.getElementById("msgLog");
-				// let br = document.createElement("BR");
-				// let text = document.createTextNode(event.data);
-				// log.insertBefore(br, log.firstChild);
-				// log.insertBefore(text, log.firstChild);
 			} else {
+				if (obj["List"]) {
+					let ports = obj["List"]["ports"];
+					updatePortList(ports);
+				}
 				let log = document.getElementById("msgLog");
 				let br = document.createElement("BR");
 				let text = document.createTextNode(event.data);
@@ -241,8 +238,6 @@
 		}
 		return selectedPort;
 	}
-
-	// window.setTimeout(()=>listPorts(),500);
 
 </script>
 
