@@ -57,9 +57,6 @@ fn main() {
   // Init logger
   env_logger::init().unwrap();
 
-  let sr = SerialRequest::List {};
-  info!("serialized = {}", serde_json::to_string(&sr).unwrap());
-
   // Default port number
   let mut port = 8080;
   // Parse cmdline args
