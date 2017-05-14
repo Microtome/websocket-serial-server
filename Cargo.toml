@@ -15,7 +15,9 @@ rand = "0.3.15"
 serde = "1.0.2"
 serde_derive = "1.0.2"
 serde_json = "1.0.2"
-serialport = "1.0.1"
+##serialport = "1.0.1"
+##serialport = { path = "../serialport-rs" }
+serialport = {git = "https://daniel.a.joyce@gitlab.com/daniel.a.joyce/serialport-rs.git", branch = "fix-fd-leaks"}
 thread-control = "0.1.2"
 websocket = "0.19.1"
 
