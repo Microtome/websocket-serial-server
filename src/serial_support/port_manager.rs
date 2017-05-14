@@ -13,23 +13,22 @@ struct OpenPort {
   /// The opened serial port
   /// SerialPort is not Sized, so it makes hashmap mad
   /// and so we deal with these shennanigans
-  port: RefCell<Box<sp::SerialPort>>,
+  port: Box<sp::SerialPort>,
 }
 
 impl OpenPort {
   /// Write data to the serial port
-  pub fn write_port(&self, data: &[u8]) -> Result<()> {
+  pub fn write_port(&mut self, data: &[u8]) -> Result<()> {
     self
       .port
-      .borrow_mut()
       .write_all(data)
       .map_err(|err| ErrorKind::Io(err).into())
   }
+
   /// Read data from the serial port
-  pub fn read_port(&self, buff: &mut [u8]) -> Result<usize> {
+  pub fn read_port(&mut self, buff: &mut [u8]) -> Result<usize> {
     self
       .port
-      .borrow_mut()
       .read(buff)
       .map_err(|err| ErrorKind::Io(err).into())
   }
@@ -72,13 +71,13 @@ impl PortManager {
         // Bug: serialport 1.0.1 has One and Two mixed up
         // FIXME: Will be fixed in next release
         // So here we use Two to select One stop bit
-        stop_bits: sp::StopBits::Two,
+        stop_bits: sp::StopBits::One,
         timeout: Duration::from_millis(1),
       };
 
       match sp::open_with_settings(&port_name, &sp_settings) {
         Ok(serial_port) => {
-          let open_port = OpenPort { port: RefCell::new(serial_port) };
+          let open_port = OpenPort { port: serial_port };
           self.open_ports.insert(port_name.to_string(), open_port);
           Ok(())
         }
@@ -94,8 +93,8 @@ impl PortManager {
 
   /// Write data to the port
   /// To write data to a port the port must have been previously locked by sub_id
-  pub fn write_port(&self, port_name: &String, data: &[u8]) -> Result<()> {
-    match self.open_ports.get(port_name) {
+  pub fn write_port(&mut self, port_name: &String, data: &[u8]) -> Result<()> {
+    match self.open_ports.get_mut(port_name) {
       None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
       Some(p) => p.write_port(data),
     }
@@ -104,8 +103,8 @@ impl PortManager {
   /// Read data from a port into the buffer buff
   /// If successful, returns Ok(usize) which is the number of
   /// bytes read
-  pub fn read_port(&self, port_name: &String, buff: &mut [u8]) -> Result<usize> {
-    match self.open_ports.get(port_name) {
+  pub fn read_port(&mut self, port_name: &String, buff: &mut [u8]) -> Result<usize> {
+    match self.open_ports.get_mut(port_name) {
       None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
       Some(p) => p.read_port(buff),
     }
@@ -114,11 +113,11 @@ impl PortManager {
 
   /// Read all currently open ports, return a hashmap of
   /// ports to Result<Vec<u8>>
-  pub fn read_all_ports(&self) -> HashMap<String, Result<Vec<u8>>> {
+  pub fn read_all_ports(&mut self) -> HashMap<String, Result<Vec<u8>>> {
     let mut buffer = vec![0; 4096];
     let mut map = HashMap::new();
-    for port_name in self.open_ports.keys() {
-      match self.read_port(port_name, buffer.as_mut_slice()) {
+    for (port_name, open_port) in self.open_ports.iter_mut() {
+      match open_port.read_port(buffer.as_mut_slice()) {
         Ok(bytes_read) => {
           if bytes_read == 0 {
             // EOF
