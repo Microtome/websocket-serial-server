@@ -3,9 +3,9 @@ Connect to and read / write serial ports over websockets. In Rust
 
 There is a need for a way to interface with hardware for software running in web browsers. WebUSB and the HTML5 serial spec are still immature.
 
-** Alpha, but works for me **
+**Alpha, but works for me**
 
-** Currently there is no security, the connection is NOT encrypted **
+**Currently there is no security, the connection is NOT encrypted**
 
 ## Features
 
