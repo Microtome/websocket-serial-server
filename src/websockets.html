@@ -107,7 +107,6 @@
 	socket.onmessage = (event) => {
 		try {
 			let obj = JSON.parse(event.data);
-			// console.log(event);
 			if (obj["Read"] !== undefined) {
 				let received = document.getElementById("received");
 				let br = document.createElement("BR");
@@ -119,16 +118,20 @@
 					let ports = obj["List"]["ports"];
 					updatePortList(ports);
 				}
-				let log = document.getElementById("msgLog");
-				let br = document.createElement("BR");
-				let text = document.createTextNode(event.data);
-				log.insertBefore(br, log.firstChild);
-				log.insertBefore(text, log.firstChild);
+				updateDataReadDisplay(event.data);
 			}
 		} catch (e) {
 			console.error("Error handling ws message", e, event);
 		}
 	};
+
+	function updateDataReadDisplay(data) {
+		let log = document.getElementById("msgLog");
+		let br = document.createElement("BR");
+		let text = document.createTextNode(event.data);
+		log.insertBefore(br, log.firstChild);
+		log.insertBefore(text, log.firstChild);
+	}
 
 	// Close Port
 	function closePort(event) {
@@ -216,8 +219,6 @@
 	function updatePortList(ports) {
 		let selectPort = document.getElementById("selectPort");
 		let selectedPort = getSelectedPort();
-		console.log(selectedPort);
-		if (!!!selectedPort) return;
 		selectPort.innerHTML = '';
 		ports.forEach((p) => {
 			let option = document.createElement("OPTION");
