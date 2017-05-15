@@ -3,14 +3,29 @@
 //! between threads reading serial port data
 //! and threads handling websocket requests
 
-// TODO Remove once dev is done
+#![recursion_limit = "1024"]
 #![allow(dead_code)]
 #![allow(unused_variables)]
+extern crate argparse;
+extern crate base64;
+extern crate env_logger;
+#[macro_use]
+extern crate error_chain;
+extern crate hyper;
+#[macro_use]
+extern crate log;
+extern crate rand;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+extern crate serialport;
+extern crate websocket;
+
 
 pub mod messages;
 pub mod errors;
-mod port_manager;
-mod writelock_manager;
-mod sub_manager;
-mod common;
+pub mod port_manager;
+pub mod writelock_manager;
+pub mod sub_manager;
+pub mod common;
 pub mod manage;

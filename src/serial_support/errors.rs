@@ -1,4 +1,4 @@
-use serial_support::messages::{SerialResponse, SerialRequest};
+use messages::{SerialResponse, SerialRequest};
 
 error_chain! {
 

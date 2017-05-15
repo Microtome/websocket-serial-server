@@ -11,12 +11,12 @@ use std::time::Duration;
 
 use base64;
 
-use serial_support::errors::*;
-use serial_support::messages::*;
-use serial_support::sub_manager::*;
-use serial_support::port_manager::*;
-use serial_support::writelock_manager::*;
-use serial_support::common::*;
+use errors::*;
+use messages::*;
+use sub_manager::*;
+use port_manager::*;
+use writelock_manager::*;
+use common::*;
 
 /// Manager manages connection state.
 /// TODO Needs a better name

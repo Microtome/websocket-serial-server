@@ -4,7 +4,7 @@ use std::iter::FromIterator;
 use std::time::Duration;
 
 use serialport as sp;
-use serial_support::errors::*;
+use errors::*;
 
 
 /// Struct for containing Port information

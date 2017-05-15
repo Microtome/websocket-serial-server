@@ -11,19 +11,15 @@
 extern crate argparse;
 extern crate base64;
 extern crate env_logger;
-#[macro_use]
-extern crate error_chain;
 extern crate hyper;
 #[macro_use]
 extern crate log;
 extern crate rand;
-#[macro_use]
-extern crate serde_derive;
 extern crate serde_json;
 extern crate serialport;
 extern crate websocket;
 
-mod serial_support;
+extern crate serial_support;
 
 use std::io::Write;
 use std::net::TcpStream;

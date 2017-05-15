@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::Sender;
 
-use serial_support::errors::*;
-use serial_support::messages::*;
+use errors::*;
+use messages::*;
 
 
 

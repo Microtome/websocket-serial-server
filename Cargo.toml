@@ -21,6 +21,10 @@ serialport = {git = "https://daniel.a.joyce@gitlab.com/daniel.a.joyce/serialport
 thread-control = "0.1.2"
 websocket = "0.19.1"
 
+[lib]
+name="serial_support"
+path="src/serial_support/mod.rs"
+
 [[bin]]
 name = "wsss"
 path = "src/main.rs"

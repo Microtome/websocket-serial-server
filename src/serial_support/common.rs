@@ -1,6 +1,6 @@
 use std::sync::mpsc::Receiver;
 
-use serial_support::messages::SubscriptionRequest;
+use messages::SubscriptionRequest;
 
 /// Convenience type for a listener
 /// that accepts weak refs of Senders of Serial Reponses

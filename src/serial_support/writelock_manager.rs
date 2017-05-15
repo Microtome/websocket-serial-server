@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serial_support::errors::*;
+use errors::*;
 
 /// Manages tracking of write locks
 pub struct WriteLockManager {
