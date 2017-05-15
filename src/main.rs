@@ -1,12 +1,27 @@
 //!
-//! WebSocket Serial Server
+//! # WebSocket Serial Server
 //!
 //! WebSocket Serial Server is a program that allows
 //! that allows browsers to access serial ports
 //! on localhost
-
-// `error_chain!` can recurse deeply
-#![recursion_limit = "1024"]
+//!
+//! ## Running
+//!
+//! ```./wsss```
+//!
+//! You can also specift a port:
+//!
+//! ```./wsss -p PORT_NUM``` or ```./wsss --port PORT_NUM```
+//!
+//! When you specify a port, a simple http server will
+//! be bound at "/" on PORT_NUM, and a websocket bound at "/" 
+//! on PORT_NUM + 1
+//! 
+//! The webpage served at "/" on PORT_NUM provides a convenient
+//! way for testing serial port connectivity
+//!
+//! You can open/close ports, read and write data, and see the
+//! responses. All messages are in JSON format
 
 extern crate argparse;
 extern crate base64;
@@ -43,12 +58,13 @@ use serial_support::manage::Manager;
 use serial_support::messages::*;
 use serial_support::errors as e;
 
-// Max number of failures we allow when trying to send
-// data to client before exiting
-// TODO: Make configurable
-const MAX_SEND_ERROR_COUNT: u32 = 5;
+/// Max number of failures we allow when trying to send
+/// data to client before exiting
+/// TODO: Make configurable
+pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 
-fn main() {
+/// Launches wsss
+pub fn main() {
 
   // Init logger
   env_logger::init().unwrap();
@@ -307,7 +323,11 @@ fn ws_handler(
 
 }
 
-fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
+/// Send an error to the given subscriber 
+/// Log a warning if the message can't be sent
+/// This is usually ok as it means the client 
+/// has simply disconnected
+pub fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
   let error = e::to_serial_response_error(error);
   serde_json::to_string(&error)
     .map_err(|err| e::ErrorKind::Json(err))
