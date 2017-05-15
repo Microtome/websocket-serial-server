@@ -1,8 +1,5 @@
-/// Serial port management module supporting one
-/// writer and multiple readers
-///
-/// Clients can lock a port for writing, but
-/// subscribe to data from multiple ports for reads
+//! Manages serial port state and communication with clients,
+//! and handling requests / responses
 
 use std::collections::HashSet;
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -18,8 +15,11 @@ use port_manager::*;
 use writelock_manager::*;
 use common::*;
 
-/// Manager manages connection state.
-/// TODO Needs a better name
+/// Serial port management module supporting one
+/// writer and multiple readers
+///
+/// Clients can lock a port for writing, but
+/// subscribe to data from multiple ports for reads
 pub struct Manager {
   /// Manage write lock status
   writelock_manager: WriteLockManager,
@@ -338,7 +338,7 @@ impl Manager {
     // Clear set of bad_ports
   }
 
-  pub fn send_message(&mut self, sub_id: &String, msg: SerialResponse) {
+  fn send_message(&mut self, sub_id: &String, msg: SerialResponse) {
     match self.sub_manager.send_message(sub_id, msg) {
       Err(e) => {
         warn!("Error sending serial response to sub_id '{}'", sub_id);
@@ -352,14 +352,14 @@ impl Manager {
 
   /// Broadcast a message to all subscribers and
   /// then cleanup any subs that errored
-  pub fn broadcast_message(&mut self, msg: SerialResponse) {
+  fn broadcast_message(&mut self, msg: SerialResponse) {
     let bad_subs = self.sub_manager.broadcast_message(msg);
     self.cleanup_bad_subs(bad_subs);
   }
 
   /// Broadcast a message to all subscribers interested in the
   /// given port and then cleanup any subs that errored
-  pub fn broadcast_message_for_port(&mut self, port_name: &String, msg: SerialResponse) {
+  fn broadcast_message_for_port(&mut self, port_name: &String, msg: SerialResponse) {
     let bad_subs = self
       .sub_manager
       .broadcast_message_for_port(port_name, msg);
