@@ -10,6 +10,8 @@ There is a need for a way to interface with hardware for software running in web
 ## Features
 
 1. Written in Rust, so robust and memory safe.
+1. All requests and responses are JSON based
+1. Supports sending and receiving binary data, as base64 encoded strings
 1. Clients can subscribe to multiple ports
 1. Clients can write lock ports, so they are the only one
 who can send data to it. Writing to a port can not happen
@@ -79,6 +81,28 @@ The rust.rls is the most important one.
     //"editor.fontFamily": "Fira Code"
 }
 ```
+
+### Running
+
+build:
+
+`cargo build` or `cargo build --release`
+
+run:
+
+`./target/debug/wsss`, or if built with `--release`, `./target/release/wsss`
+
+use `-p` or `--port` to set http port (default is 8080)
+
+then browse to `http://localhost:PORT` to find the test page.
+
+### Logging
+
+Wsss makes extensive use of logging and the [env_logger](https://crates.io/crates/env_logger) crate
+ 
+Please read the env_logger docs for more information, but here is a quick example:
+
+```RUST_LOG=debug ./target/debug/wsss```
 
 ## TODO
 
