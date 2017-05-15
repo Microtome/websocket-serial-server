@@ -327,7 +327,7 @@ fn ws_handler(
 /// Log a warning if the message can't be sent
 /// This is usually ok as it means the client 
 /// has simply disconnected
-pub fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
+fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
   let error = e::to_serial_response_error(error);
   serde_json::to_string(&error)
     .map_err(|err| e::ErrorKind::Json(err))
