@@ -22,5 +22,5 @@ thread-control = "0.1.2"
 websocket = "0.19.1"
 
 [[bin]]
-name = "wsssd"
+name = "wsss"
 path = "src/main.rs"
