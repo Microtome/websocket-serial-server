@@ -67,9 +67,6 @@ impl PortManager {
         data_bits: sp::DataBits::Eight,
         flow_control: sp::FlowControl::None,
         parity: sp::Parity::None,
-        // Bug: serialport 1.0.1 has One and Two mixed up
-        // FIXME: Will be fixed in next release
-        // So here we use Two to select One stop bit
         stop_bits: sp::StopBits::One,
         timeout: Duration::from_millis(1),
       };
