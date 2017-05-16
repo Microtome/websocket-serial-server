@@ -280,6 +280,9 @@ impl Manager {
   }
 
   /// Handle close port requests
+  /// FIXME: have this method delegate closing all ports
+  /// for a sub to another method, will simplify final
+  /// implementation and message sending.
   fn handle_close_port(&mut self, sub_id: &String, port_name: Option<String>) -> Result<()> {
     self.check_sub_id(&sub_id)?;
     // Unsubscribe from ports
