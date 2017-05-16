@@ -21,8 +21,8 @@ use common::*;
 /// Clients can lock a port for writing, but
 /// subscribe to data from multiple ports for reads
 ///
-/// The Manager takes actions in response to 
-/// [SerialRequest::*](../messages/index.html) messages sent on 
+/// The Manager takes actions in response to
+/// [SerialRequest::*](../messages/index.html) messages sent on
 /// on its receiver
 pub struct Manager {
   /// Manage write lock status
@@ -172,15 +172,11 @@ impl Manager {
       SerialRequest::Close { port } => self.handle_close_port(sub_id, port),
       SerialRequest::List {} => self.handle_list_ports(sub_id),
     };
-    match response {
-      Ok(response) => {
-        // Send acknowledge?
-      }
-      Err(e) => {
-        warn!("Error '{}' occured handling serial request message", e);
-        // Send error?
-        self.send_message(&sub_id, to_serial_response_error(e));
-      }
+    if let Err(e) = response {
+      warn!("Error '{}' occured handling serial request message", e);
+      // Send error?
+      self.send_message(&sub_id, to_serial_response_error(e));
+
     }
   }
 
@@ -341,14 +337,11 @@ impl Manager {
   }
 
   fn send_message(&mut self, sub_id: &String, msg: SerialResponse) {
-    match self.sub_manager.send_message(sub_id, msg) {
-      Err(e) => {
-        warn!("Error sending serial response to sub_id '{}'", sub_id);
-        let mut bad_subs = Vec::new();
-        bad_subs.push(e);
-        self.cleanup_bad_subs(bad_subs);
-      }
-      _ => {}
+    if let Err(e) = self.sub_manager.send_message(sub_id, msg) {
+      warn!("Error sending serial response to sub_id '{}'", sub_id);
+      let mut bad_subs = Vec::new();
+      bad_subs.push(e);
+      self.cleanup_bad_subs(bad_subs);
     }
   }
 
@@ -371,14 +364,11 @@ impl Manager {
   /// Cleanup any bad subs where a message send failed
   fn cleanup_bad_subs(&mut self, bad_subs: Vec<Error>) {
     for e in bad_subs {
-      match e {
-        Error(ErrorKind::SubscriberSendError(sub_id), _) => {
-          // Remove subscriptions
-          self.sub_manager.end_subscription(&sub_id);
-          // Remove all write locks held by dead subscription
-          self.writelock_manager.unlock_all_ports_for_sub(&sub_id);
-        }
-        _ => { /*nop*/ }
+      if let Error(ErrorKind::SubscriberSendError(sub_id), _) = e {
+        // Remove subscriptions
+        self.sub_manager.end_subscription(&sub_id);
+        // Remove all write locks held by dead subscription
+        self.writelock_manager.unlock_all_ports_for_sub(&sub_id);
       }
     }
   }
