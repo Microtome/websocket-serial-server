@@ -20,6 +20,10 @@ use common::*;
 ///
 /// Clients can lock a port for writing, but
 /// subscribe to data from multiple ports for reads
+///
+/// The Manager takes actions in response to 
+/// [SerialRequest::*](../messages/index.html) messages sent on 
+/// on its receiver
 pub struct Manager {
   /// Manage write lock status
   writelock_manager: WriteLockManager,
@@ -319,7 +323,6 @@ impl Manager {
   }
 
   /// Cleanup any bad ports
-  /// Clears out the passed in hash set
   fn cleanup_bad_ports(&mut self, bad_ports: &HashSet<String>) {
     for port_name in bad_ports.iter() {
       // Tell everyone port is sick
@@ -335,7 +338,6 @@ impl Manager {
       // Remove bad ports from subscriptions
       self.sub_manager.remove_port_from_all(port_name);
     }
-    // Clear set of bad_ports
   }
 
   fn send_message(&mut self, sub_id: &String, msg: SerialResponse) {
@@ -371,7 +373,9 @@ impl Manager {
     for e in bad_subs {
       match e {
         Error(ErrorKind::SubscriberSendError(sub_id), _) => {
+          // Remove subscriptions
           self.sub_manager.end_subscription(&sub_id);
+          // Remove all write locks held by dead subscription
           self.writelock_manager.unlock_all_ports_for_sub(&sub_id);
         }
         _ => { /*nop*/ }
