@@ -65,6 +65,13 @@ impl WriteLockManager {
     }
   }
 
+  pub fn unlock_port_if_locked_by(&mut self, port_name: &String, sub_id: &String) {
+    if self.is_port_write_locked_by(port_name, sub_id){
+      // Should not panic since we are the one who locked it
+      self.unlock_port(&port_name, sub_id).unwrap();
+    }
+  }
+
   // Release all write locks held by this sub_id
   pub fn unlock_all_ports_for_sub(&mut self, sub_id: &String) {
     let mut to_delete = Vec::<String>::new();
