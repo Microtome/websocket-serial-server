@@ -280,29 +280,28 @@ impl Manager {
   }
 
   /// Handle close port requests
-  /// FIXME: have this method delegate closing all ports
-  /// for a sub to another method, will simplify final
-  /// implementation and message sending.
   fn handle_close_port(&mut self, sub_id: &String, port_name: Option<String>) -> Result<()> {
-    self.check_sub_id(&sub_id)?;
-    // Unsubscribe from ports
     match port_name {
-      None => {
-        self.sub_manager.clear_ports(Some(&sub_id));
-        Ok(())
-      }
-      Some(ref pn) => self.sub_manager.remove_port(&sub_id, &pn),
-    }?;
-    // Remove write locks
-    match port_name {
-      None => {
-        self.writelock_manager.unlock_all_ports_for_sub(sub_id);
-        Ok(())
-      }
-      Some(ref pn) => self.writelock_manager.unlock_port(&pn, sub_id),
-    }?;
-    // TODO: Ensure close messages are sent, etc
+      Some(port_name) => self.handle_close_port_for_sub(sub_id, port_name),
+      None => self.handle_close_all_ports_for_sub(sub_id)
+    }
+  }
 
+  /// Handle closing a signle port for a sub
+  fn handle_close_port_for_sub(&mut self, sub_id: &String, port_name: String) -> Result<()> {
+    self.sub_manager.remove_port(&sub_id, &port_name)?;
+    self.writelock_manager.unlock_port_if_locked_by(&port_name, &sub_id);
+    // self.cleanup_ports_with_no_subs();
+    let close_resp = SerialResponse::Closed { port: port_name.clone() };
+    self.send_message(&sub_id, close_resp);
+    Ok(())
+  }
+
+  /// Handle closing all ports for sub
+  fn handle_close_all_ports_for_sub(&mut self, sub_id: &String) -> Result<()> {
+    self.sub_manager.clear_ports(Some(&sub_id));
+    self.writelock_manager.unlock_all_ports_for_sub(sub_id);
+    
     // Close ports with no subscribers
     let open_ports = self.port_manager.open_ports();
     let subscribed_ports = self.sub_manager.subscribed_ports();
@@ -310,9 +309,9 @@ impl Manager {
 
     // For each open port that isn't subscribed,
     for port_to_close in ports_with_no_subs {
-      // close it
+      // close it, REDUNDANT?
       self.port_manager.close_port(&port_to_close);
-      // remove the write lock
+      // remove the write lock, REDUNDANT?
       self.writelock_manager.clear_lock(&port_to_close);
       // Let them know its closed
       let close_resp = SerialResponse::Closed { port: port_to_close.clone() };
