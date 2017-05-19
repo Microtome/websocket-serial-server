@@ -67,12 +67,10 @@ impl Manager {
     // A set of SerialResponse::Errors built from
     // from the serial port read/write error responses
     let mut bad_ports = HashSet::<String>::new();
-    // Shutdown flag
-    let mut shutdown = false;
     // Check about 30 times a second
     let sleep_dur = Duration::from_millis(33);
 
-    while !shutdown {
+    loop {
       // Sleep for a little bit to avoid pegging cpu
       // TODO Dynamic timing loop
       thread::sleep(sleep_dur);
@@ -87,7 +85,7 @@ impl Manager {
             TryRecvError::Disconnected => {
               // Remote end hung up, time to shutdown
               info!("Shutting down SerialPortManager");
-              shutdown = true;
+              break;
             }
           }
         }
