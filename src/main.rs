@@ -40,7 +40,6 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
-use std::time::Duration;
 
 use argparse::{ArgumentParser, Store};
 use websocket::client::Writer;
@@ -54,9 +53,11 @@ use hyper::server::request::Request;
 use hyper::server::response::Response;
 use rand::{Rng, thread_rng};
 
+use serial_support::dynamic_sleep::{DynamicSleep};
+use serial_support::errors as e;
 use serial_support::manage::Manager;
 use serial_support::messages::*;
-use serial_support::errors as e;
+
 
 /// Max number of failures we allow when trying to send
 /// data to client before exiting
@@ -203,18 +204,18 @@ fn ws_handler(
 
   info!("{}: Connection from {}", sub_id, ip);
 
-  //   let message = Message::text("Hello".to_string());
-  //   client.send_message(&message).unwrap();
-
   let (mut receiver, mut sender) = client
     .split()
     .expect(&format!("{}: WS client error", sub_id));
 
   let mut send_error_count = 0;
 
-  let sleep_dur = Duration::from_millis(33);
+  let mut dynamic_sleep = DynamicSleep::with_freq("main");
 
   'msg_loop: loop {
+
+    dynamic_sleep.sleep();
+    
     // Try and read a WS message
     match receiver.recv_message::<Message, _, _>() {
       Ok(message) => {
@@ -315,8 +316,6 @@ fn ws_handler(
       );
       break 'msg_loop;
     }
-
-    thread::sleep(sleep_dur);
   }
 
   info!("{}: Shutting down!", sub_id);

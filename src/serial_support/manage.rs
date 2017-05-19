@@ -4,16 +4,16 @@
 use std::collections::HashSet;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
-use std::time::Duration;
 
 use base64;
 
+use common::*;
+use dynamic_sleep::{DynamicSleep};
 use errors::*;
 use messages::*;
-use sub_manager::*;
 use port_manager::*;
+use sub_manager::*;
 use writelock_manager::*;
-use common::*;
 
 /// Serial port management module supporting one
 /// writer and multiple readers
@@ -67,13 +67,13 @@ impl Manager {
     // A set of SerialResponse::Errors built from
     // from the serial port read/write error responses
     let mut bad_ports = HashSet::<String>::new();
+
     // Check about 30 times a second
-    let sleep_dur = Duration::from_millis(33);
+    let mut dynamic_sleep = DynamicSleep::with_freq("manager");
 
     loop {
       // Sleep for a little bit to avoid pegging cpu
-      // TODO Dynamic timing loop
-      thread::sleep(sleep_dur);
+      dynamic_sleep.sleep();
 
       // Handle serial operation requests
       match self.receiver.try_recv() {
