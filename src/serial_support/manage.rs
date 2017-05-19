@@ -128,8 +128,7 @@ impl Manager {
 
       //Handle write requests
       let mut recv_count = 0;
-      let mut do_recv = true;
-      while do_recv {
+      while recv_count < 50 {
         recv_count += 1;
         match self.subsc_receiver.try_recv() {
           Ok(sub_request) => self.sub_manager.add_subscription(sub_request),
@@ -140,15 +139,9 @@ impl Manager {
                 // Or just one?
                 debug!("Got disconnected when trying to get serial request");
               }
-              TryRecvError::Empty => do_recv = false,
+              TryRecvError::Empty => break,
             }
           }
-        }
-
-        // Don't let this loop get stuck here forever
-        // starving the outer loop
-        if recv_count == 50 {
-          do_recv = false;
         }
       }
 
