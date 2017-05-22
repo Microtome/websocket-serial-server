@@ -14,9 +14,9 @@
 //! ```./wsss -p PORT_NUM``` or ```./wsss --port PORT_NUM```
 //!
 //! When you specify a port, a simple http server will
-//! be bound at "/" on PORT_NUM, and a websocket bound at "/" 
+//! be bound at "/" on PORT_NUM, and a websocket bound at "/"
 //! on PORT_NUM + 1
-//! 
+//!
 //! The webpage served at "/" on PORT_NUM provides a convenient
 //! way for testing serial port connectivity
 //!
@@ -155,7 +155,7 @@ fn spawn_ws_handler(
   sreq_tx_clone: Sender<(String, SerialRequest)>,
   connection: WsUpgrade<TcpStream>,
 ) {
-  thread::spawn(move || ws_handler(sub_id, &sub_tx_clone, &sreq_tx_clone, connection));
+  thread::spawn(move || ws_handler(sub_id, &sub_tx_clone, &sreq_tx_clone, connection),);
 }
 
 
@@ -323,9 +323,9 @@ fn ws_handler(
 
 }
 
-/// Send an error to the given subscriber 
+/// Send an error to the given subscriber
 /// Log a warning if the message can't be sent
-/// This is usually ok as it means the client 
+/// This is usually ok as it means the client
 /// has simply disconnected
 fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
   let error = e::to_serial_response_error(error);
