@@ -108,14 +108,15 @@ pub fn main() {
   Manager::spawn(sreq_rx, sub_rx);
 
   // Start listening for http connections
+  let http_server = HttpServer::http(format!("127.0.0.1:{}", port)).expect(
+    &format!(
+      "Failed to create http server on port {}",
+      port
+    ),
+  );
+
   thread::spawn(
     move || {
-      let http_server = HttpServer::http(format!("127.0.0.1:{}", port)).expect(
-        &format!(
-          "Failed to create http server on port {}",
-          port
-        ),
-      );
       http_server
         .handle(http_handler)
         .expect(&"Failed to listen");
