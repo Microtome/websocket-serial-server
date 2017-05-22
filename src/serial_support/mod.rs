@@ -8,6 +8,7 @@
 #![allow(unused_variables)]
 extern crate argparse;
 extern crate base64;
+extern crate config;
 extern crate env_logger;
 #[macro_use]
 extern crate error_chain;
@@ -22,11 +23,13 @@ extern crate serialport;
 extern crate websocket;
 
 
-pub mod messages;
-pub mod errors;
-pub mod port_manager;
-pub mod writelock_manager;
-pub mod sub_manager;
+
 pub mod common;
-pub mod manage;
+pub mod cfg;
 pub mod dynamic_sleep;
+pub mod errors;
+pub mod manage;
+pub mod messages;
+pub mod port_manager;
+pub mod sub_manager;
+pub mod writelock_manager;
