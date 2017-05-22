@@ -53,7 +53,7 @@ use hyper::server::request::Request;
 use hyper::server::response::Response;
 use rand::{Rng, thread_rng};
 
-use serial_support::dynamic_sleep::{DynamicSleep};
+use serial_support::dynamic_sleep::DynamicSleep;
 use serial_support::errors as e;
 use serial_support::manage::Manager;
 use serial_support::messages::*;
@@ -210,12 +210,12 @@ fn ws_handler(
 
   let mut send_error_count = 0;
 
-  let mut dynamic_sleep = DynamicSleep::with_freq("main");
+  let mut dynamic_sleep = DynamicSleep::new("main");
 
   'msg_loop: loop {
 
     dynamic_sleep.sleep();
-    
+
     // Try and read a WS message
     match receiver.recv_message::<Message, _, _>() {
       Ok(message) => {

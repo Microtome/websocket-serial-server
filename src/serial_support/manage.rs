@@ -69,7 +69,7 @@ impl Manager {
     let mut bad_ports = HashSet::<String>::new();
 
     // Check about 30 times a second
-    let mut dynamic_sleep = DynamicSleep::with_freq("manager");
+    let mut dynamic_sleep = DynamicSleep::new("manager");
 
     loop {
       // Sleep for a little bit to avoid pegging cpu
