@@ -41,7 +41,6 @@ use std::net::TcpStream;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
-use argparse::{ArgumentParser, Store};
 use websocket::client::Writer;
 use websocket::result::WebSocketError;
 use websocket::message::Type;
@@ -57,6 +56,7 @@ use serial_support::dynamic_sleep::DynamicSleep;
 use serial_support::errors as e;
 use serial_support::manage::Manager;
 use serial_support::messages::*;
+use serial_support::cfg::*;
 
 
 /// Max number of failures we allow when trying to send
@@ -68,26 +68,15 @@ pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 pub fn main() {
 
   // Init logger
-  env_logger::init().unwrap();
+  env_logger::init().expect("Initialization of logging system failed!");
 
-  // Default port number
-  let mut port = 8080;
-  // Parse cmdline args
-  {
-    let mut ap = ArgumentParser::new();
-    ap.set_description("Provide access to serial ports over JSON Websockets");
-    ap.refer(&mut port)
-      .add_option(&["-p", "--port"], Store, "Http Port");
-    ap.parse_args_or_exit();
-  }
-
-  // websocket port
-  let ws_port = port + 1;
+  // Grab config
+  let cfg = WsssConfig::load();
 
   // html file for landing page
   let websocket_html = include_str!("websockets.html").replace(
     "__WS_PORT__ = 8081",
-    &format!("__WS_PORT__ = {}", ws_port),
+    &format!("__WS_PORT__ = {}", cfg.ws_port),
   );
 
   // The HTTP server handler
@@ -100,7 +89,7 @@ pub fn main() {
     response.end().expect(&"Send response failed");
   };
 
-  info!("Using ports {} {}", port, ws_port);
+  info!("Using ports {} {}", cfg.http_port, cfg.ws_port);
 
   // Set up channels and Manager
   let (sub_tx, sub_rx) = channel::<SubscriptionRequest>();
@@ -108,10 +97,10 @@ pub fn main() {
   Manager::spawn(sreq_rx, sub_rx);
 
   // Start listening for http connections
-  let http_server = HttpServer::http(format!("127.0.0.1:{}", port)).expect(
+  let http_server = HttpServer::http(format!("{}:{}", cfg.bind_address, cfg.http_port)).expect(
     &format!(
       "Failed to create http server on port {}",
-      port
+      cfg.http_port
     ),
   );
 
@@ -124,10 +113,10 @@ pub fn main() {
   );
 
   // Start listening for WebSocket connections
-  let ws_server = Server::bind(format!("127.0.0.1:{}", ws_port)).expect(
+  let ws_server = Server::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port)).expect(
     &format!(
       "Failed bind on websocket port {}",
-      ws_port
+      cfg.ws_port
     ),
   );
 
