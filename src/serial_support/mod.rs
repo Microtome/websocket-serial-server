@@ -8,7 +8,6 @@
 #![allow(unused_variables)]
 extern crate argparse;
 extern crate base64;
-extern crate config;
 extern crate env_logger;
 #[macro_use]
 extern crate error_chain;
@@ -20,6 +19,7 @@ extern crate rand;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate serialport;
+extern crate toml;
 extern crate websocket;
 
 

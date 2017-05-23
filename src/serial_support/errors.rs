@@ -13,6 +13,8 @@ error_chain! {
     Utf8(::std::string::FromUtf8Error);
     // Wrapped json error
     Json(::serde_json::error::Error);
+    // Wrapped json error
+    TomlDeserialize(::toml::de::Error);
     // Wrapped sync send response error
     SendResponse(::std::sync::mpsc::SendError<SerialResponse>);
     // Wrapped Base64 decode error
@@ -21,6 +23,8 @@ error_chain! {
     SendRequest(::std::sync::mpsc::SendError<(String,SerialRequest)>);
     // wrapped send websocket error.
     SendWsMessage(::websocket::result::WebSocketError);
+    // Wrapped ipv4 parse error
+    IpAddr(::std::net::AddrParseError);
   }
 
   errors{
