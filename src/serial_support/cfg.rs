@@ -38,7 +38,7 @@ const HTTP_PORT_KEY: &str = "http_port";
 const WS_PORT_KEY: &str = "ws_port";
 const BIND_ADDRESS_KEY: &str = "bind_address";
 
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct TomlWsssConfig {
   pub http_port: Option<u32>,
   pub ws_port: Option<u32>,
@@ -111,6 +111,14 @@ impl TomlWsssConfig {
     Ok(toml_cfg)
   }
 
+  fn save_to_file(&self, file_name: &str) -> Result<()> {
+    let mut file = File::open(file_name)?;
+    let cfg_toml = toml::to_string(self)?;
+    file.write_all(cfg_toml.as_bytes())?;
+    file.flush()?;
+    Ok(())
+  }
+
   fn parse_env() -> TomlWsssConfig {
     TomlWsssConfig {
       http_port: env::var(HTTP_PORT_ENV_KEY)
@@ -154,7 +162,7 @@ fn merge_options<T>(o1: Option<T>, o2: Option<T>) -> Option<T> {
 ///   ws_port = 8082
 ///   bind_address = "10.1.100.12"
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct WsssConfig {
   /// The http_port to listen on.
   ///
@@ -219,6 +227,14 @@ impl WsssConfig {
     )
                .into();
   }
+
+  pub fn save_to_file(&self, file_name: &str) -> Result<()> {
+    let mut file = File::open(file_name)?;
+    let cfg_toml = toml::to_string(self)?;
+    file.write_all(cfg_toml.as_bytes())?;
+    file.flush()?;
+    Ok(())
+  }
 }
 
 impl Default for WsssConfig {
@@ -279,4 +295,74 @@ fn load_local_file() -> Option<TomlWsssConfig> {
       },
     )
     .and_then(|file| TomlWsssConfig::parse_file(&file.to_string_lossy()).ok(),)
+}
+
+#[cfg(test)]
+mod tests {
+
+  extern crate tempfile;
+
+  use std::io::SeekFrom;
+
+  use self::tempfile::*;
+  use super::*;
+
+  #[test]
+  fn toml_wsss_config_default() {
+    let cfg = TomlWsssConfig::default();
+    assert_eq!(cfg.http_port, None, "Http port should be None");
+    assert_eq!(cfg.ws_port, None, "WS port should be None");
+    assert_eq!(cfg.bind_address, None, "bind address should be None");
+  }
+
+  #[test]
+  fn wsss_config_default() {
+    let cfg = WsssConfig::default();
+    let def_bind_addr = Ipv4Addr::from_str(DEFAULT_BIND_ADDR).unwrap();
+    assert_eq!(
+      cfg.http_port,
+      DEFAULT_HTTP_PORT,
+      "Http port should be '{}'",
+      DEFAULT_HTTP_PORT
+    );
+    assert_eq!(
+      cfg.ws_port,
+      DEFAULT_WS_PORT,
+      "WS port should be '{}'",
+      DEFAULT_WS_PORT
+    );
+    assert_eq!(
+      cfg.bind_address,
+      def_bind_addr,
+      "bind address should be '{}'",
+      DEFAULT_BIND_ADDR
+    );
+  }
+
+  #[test]
+  fn test_file_config() {
+    let mut tmp_cfg_file = tempfile().expect("Creating temp file failed");
+    let cfg = WsssConfig {
+      http_port: 12345,
+      ws_port: 12346,
+      bind_address: Ipv4Addr::from_str("10.1.100.10").expect("Create config obj failed"),
+    };
+    let cfg_str = toml::to_string(&cfg).expect("Serializing to toml failed");
+    tmp_cfg_file.write_all(cfg_str.as_bytes()).unwrap();
+    tmp_cfg_file.flush().unwrap();
+    tmp_cfg_file.seek(SeekFrom::Start(0)).unwrap();
+    let mut contents = String::new();
+    tmp_cfg_file.read_to_string(&mut contents).unwrap();
+    let toml_cfg: TomlWsssConfig = toml::from_str(&contents).unwrap();
+    let read_cfg = WsssConfig::from(toml_cfg);
+    assert_eq!(
+      cfg,
+      read_cfg,
+      "Configuration '{}' should equal '{}'",
+      cfg_str,
+      contents
+    );
+  }
+
+
 }

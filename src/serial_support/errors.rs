@@ -13,8 +13,10 @@ error_chain! {
     Utf8(::std::string::FromUtf8Error);
     // Wrapped json error
     Json(::serde_json::error::Error);
-    // Wrapped json error
+    // Wrapped toml deserialization error
     TomlDeserialize(::toml::de::Error);
+    // Wrapped toml serialization error
+    TomlSerialize(::toml::ser::Error);
     // Wrapped sync send response error
     SendResponse(::std::sync::mpsc::SendError<SerialResponse>);
     // Wrapped Base64 decode error

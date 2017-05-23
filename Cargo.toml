@@ -22,6 +22,9 @@ thread-control = "0.1.2"
 toml = "0.4.1"
 websocket = "0.19.1"
 
+[dev-dependencies]
+tempfile = "2.1.5"
+
 [lib]
 name="serial_support"
 path="src/serial_support/mod.rs"
