@@ -195,11 +195,9 @@ mod tests {
 
   use std::collections::HashSet;
   use std::iter::FromIterator;
-  use std::sync::mpsc::{Receiver, Sender, channel};
+  use std::sync::mpsc::{Receiver, channel};
 
   use super::*;
-  use errors::*;
-  use messages::*;
 
   #[test]
   fn test_subscriptions() {
