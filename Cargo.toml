@@ -2,6 +2,9 @@
 name = "websocket_serial_server"
 version = "0.1.0"
 authors = ["Daniel Joyce <daniel.a.joyce@gmail.com>"]
+description = "A websocket server providing access to local serial ports"
+readme = "README.md"
+license-file = "LICENSE"
 
 [dependencies]
 argparse = "0.2.1"
