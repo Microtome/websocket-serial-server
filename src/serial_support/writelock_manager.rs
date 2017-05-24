@@ -66,7 +66,7 @@ impl WriteLockManager {
   }
 
   pub fn unlock_port_if_locked_by(&mut self, port_name: &String, sub_id: &String) {
-    if self.is_port_write_locked_by(port_name, sub_id){
+    if self.is_port_write_locked_by(port_name, sub_id) {
       // Should not panic since we are the one who locked it
       self.unlock_port(&port_name, sub_id).unwrap();
     }
@@ -108,55 +108,57 @@ impl WriteLockManager {
 mod tests {
   use super::*;
 
-  fn check_not_locked_by_anyone(
-    wl_manager: &WriteLockManager,
-    port: &String,
-    sub_ids: Vec<&String>,
-  ) {
-    for sub_id in sub_ids.iter() {
-      assert_eq!(
-        false,
-        wl_manager.is_port_write_locked_by(port, sub_id),
-        "Port '{}' should not be locked by '{}'",
-        port,
-        sub_id
-      );
-      assert_eq!(
-        false,
-        wl_manager.is_port_locked_by_someone_else(port, sub_id),
-        "Port '{}' should not be locked by someone else",
-        port
-      );
-
-    }
-  }
-
-  fn check_locked_by_sub(
-    wl_manager: &WriteLockManager,
-    port: &String,
-    sub_locker: &String,
-    sub_ids: Vec<&String>,
-  ) {
-    assert_eq!(
-      true,
-      wl_manager.is_port_write_locked_by(port, sub_locker),
-      "Port '{}' should not be locked by '{}'",
-      port,
-      sub_locker
-    );
-    for sub_id in sub_ids.iter() {
-      assert_eq!(
-        true,
-        wl_manager.is_port_locked_by_someone_else(port, sub_id),
-        "Port '{}' should not be locked by someone else",
-        port
-      );
-    }
-  }
-
-
   #[test]
   fn test_locking() {
+
+    /// Utility method
+    fn check_not_locked_by_anyone(
+      wl_manager: &WriteLockManager,
+      port: &String,
+      sub_ids: Vec<&String>,
+    ) {
+      for sub_id in sub_ids.iter() {
+        assert_eq!(
+          false,
+          wl_manager.is_port_write_locked_by(port, sub_id),
+          "Port '{}' should not be locked by '{}'",
+          port,
+          sub_id
+        );
+        assert_eq!(
+          false,
+          wl_manager.is_port_locked_by_someone_else(port, sub_id),
+          "Port '{}' should not be locked by someone else",
+          port
+        );
+
+      }
+    }
+
+    /// Utility method
+    fn check_locked_by_sub(
+      wl_manager: &WriteLockManager,
+      port: &String,
+      sub_locker: &String,
+      sub_ids: Vec<&String>,
+    ) {
+      assert_eq!(
+        true,
+        wl_manager.is_port_write_locked_by(port, sub_locker),
+        "Port '{}' should not be locked by '{}'",
+        port,
+        sub_locker
+      );
+      for sub_id in sub_ids.iter() {
+        assert_eq!(
+          true,
+          wl_manager.is_port_locked_by_someone_else(port, sub_id),
+          "Port '{}' should not be locked by someone else",
+          port
+        );
+      }
+    }
+
     let wl_manager = &mut WriteLockManager::new();
     let sub_id1: String = "SUB_ID1".to_owned();
     let sub_id3: String = "SUB_ID2".to_owned();
