@@ -4,8 +4,6 @@ use std::sync::mpsc::Sender;
 use errors::*;
 use messages::*;
 
-
-
 /// Subscription
 struct Subscription {
   /// Subscription
@@ -190,4 +188,110 @@ impl SubscriptionManager {
     }
     subscribed_ports
   }
+}
+
+#[cfg(test)]
+mod tests {
+
+  use std::collections::HashSet;
+  use std::iter::FromIterator;
+  use std::sync::mpsc::{Receiver, Sender, channel};
+
+  use super::*;
+  use errors::*;
+  use messages::*;
+
+  #[test]
+  fn test_subscriptions() {
+
+    fn should_get_msg(
+      rcvr: &Receiver<SerialResponse>,
+      serial_resp: &SerialResponse,
+      fail_tag: &str,
+    ) {
+      if let Ok(resp) = rcvr.try_recv() {
+        assert_eq!(
+          resp,
+          serial_resp.clone(),
+          "{} messages '{:?}' '{:?}' should be equal",
+          fail_tag,
+          resp,
+          serial_resp.clone()
+        )
+      } else {
+        panic!("{} should not have recieved anything", fail_tag);
+      }
+    }
+
+    fn should_not_get_a_msg(rcvr: &Receiver<SerialResponse>, fail_tag: &str) {
+      if let Ok(resp) = rcvr.try_recv() {
+        panic!(
+          "{} should not have recieved anything, got {:?}",
+          fail_tag,
+          resp
+        );
+      }
+    }
+
+    // manager
+    let mut sub_manager = SubscriptionManager::new();
+    // ports
+    let ports = vec!["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2"];
+    let ports_set = HashSet::from_iter(ports.clone().into_iter().map(|p| p.to_string()));
+    // subscriber1
+    let sub1_id = "SUB1";
+    let sub1_channel = channel::<SerialResponse>();
+    let sub1_req = SubscriptionRequest {
+      sub_id: sub1_id.to_string(),
+      subscriber: sub1_channel.0,
+    };
+    // subscriber 2
+    let sub2_id = "SUB2";
+    let sub2_channel = channel::<SerialResponse>();
+    let sub2_req = SubscriptionRequest {
+      sub_id: sub2_id.to_string(),
+      subscriber: sub2_channel.0,
+    };
+    // Add subscriber 1
+    sub_manager.add_subscription(sub1_req);
+    for port in ports.iter() {
+      sub_manager
+        .add_port(&sub1_id.to_string(), &port.to_string())
+        .unwrap();
+    }
+    // Sub1 should be subscribed to all ports
+    assert_eq!(
+      sub_manager.subscribed_ports(),
+      ports_set,
+      "Port sets should be equal",
+    );
+    // Add subscriber2, but provide no ports
+    sub_manager.add_subscription(sub2_req);
+    // Broadcast a message to everyone
+    let all_subscribers_msg = SerialResponse::Ok { msg: "Broadcast all!".to_string() };
+    let mut all_res = sub_manager.broadcast_message(all_subscribers_msg.clone());
+    assert!(all_res.len() == 0, "There should be no errors");
+    should_get_msg(&sub1_channel.1, &all_subscribers_msg, "Subscriber 1");
+    should_get_msg(&sub2_channel.1, &all_subscribers_msg, "Subscriber 2");
+    // Send message to one subscriber
+    let sub1_msg = SerialResponse::Ok { msg: "Only subscriber 1 should see this!".to_string() };
+    sub_manager
+      .send_message(&sub1_id.to_string(), sub1_msg.clone())
+      .expect("Send to subscriber 1 should work!");
+    should_get_msg(&sub1_channel.1, &sub1_msg, "Subscriber 1");
+    should_not_get_a_msg(&sub2_channel.1, "Subscriber 2");
+    // Send message to subscribers of a given port
+    all_res = sub_manager.broadcast_message_for_port(&"/dev/ttyUSB2".to_string(), sub1_msg.clone());
+    assert!(all_res.len() == 0, "There should be no errors");
+    should_get_msg(&sub1_channel.1, &sub1_msg, "Subscriber 1");
+    should_not_get_a_msg(&sub2_channel.1, "Subscriber 2");
+    // unsubscribe sub1 from /dev/ttyUSB2
+    sub_manager.remove_port(&sub1_id.to_string(), &"/dev/ttyUSB2".to_string()).expect("remvoving sub1 from port should not fail.");
+    // No one should get message on ttyUSB2 now
+    all_res = sub_manager.broadcast_message_for_port(&"/dev/ttyUSB2".to_string(), sub1_msg.clone());
+    assert!(all_res.len() == 0, "There should be no errors");
+    should_not_get_a_msg(&sub1_channel.1, "Subscriber 1");
+    should_not_get_a_msg(&sub2_channel.1, "Subscriber 2");
+  }
+
 }
