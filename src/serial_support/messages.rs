@@ -26,7 +26,7 @@ pub struct SubscriptionRequest {
 ///
 /// Requests that fail or can not be met will result
 /// in SerialResponse::Error responses
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SerialRequest {
   /// Open a port for reading
   ///
@@ -114,7 +114,7 @@ impl fmt::Display for SerialRequest {
 }
 
 /// Represents the valid json responses that can be made
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SerialResponse {
   /// Error response
   ///
