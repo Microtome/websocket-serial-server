@@ -38,6 +38,8 @@ const HTTP_PORT_KEY: &str = "http_port";
 const WS_PORT_KEY: &str = "ws_port";
 const BIND_ADDRESS_KEY: &str = "bind_address";
 
+/// This struct models partially specified configuration,
+/// leaving unset values as None
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct TomlWsssConfig {
   pub http_port: Option<u32>,
@@ -78,7 +80,7 @@ impl TomlWsssConfig {
 
   /// Parse the command line returning a config with
   /// defaults overridden by commandline values.
-  fn parse_cmdline() -> TomlWsssConfig {
+  pub fn parse_cmdline() -> TomlWsssConfig {
 
     let mut port: Option<u32> = None;
     let mut ws_port: Option<u32> = None;
@@ -103,7 +105,8 @@ impl TomlWsssConfig {
     }
   }
 
-  fn parse_file(file_name: &str) -> Result<TomlWsssConfig> {
+  /// Parse a file to yield a partial config
+  pub fn parse_file(file_name: &str) -> Result<TomlWsssConfig> {
     let mut file = File::open(file_name)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
@@ -111,7 +114,8 @@ impl TomlWsssConfig {
     Ok(toml_cfg)
   }
 
-  fn save_to_file(&self, file_name: &str) -> Result<()> {
+  /// Save partial config to a file
+  pub fn save_to_file(&self, file_name: &str) -> Result<()> {
     let mut file = File::open(file_name)?;
     let cfg_toml = toml::to_string(self)?;
     file.write_all(cfg_toml.as_bytes())?;
@@ -119,7 +123,9 @@ impl TomlWsssConfig {
     Ok(())
   }
 
-  fn parse_env() -> TomlWsssConfig {
+  /// Parse configuration out of env variables.
+  /// See the cfg::*_ENV_KEY values
+  pub fn parse_env() -> TomlWsssConfig {
     TomlWsssConfig {
       http_port: env::var(HTTP_PORT_ENV_KEY)
         .ok()
@@ -132,6 +138,7 @@ impl TomlWsssConfig {
   }
 }
 
+/// Convert a WsssConfig to a TomlWsssConfig
 impl From<WsssConfig> for TomlWsssConfig {
   fn from(wsss_cfg: WsssConfig) -> TomlWsssConfig {
     TomlWsssConfig {
@@ -228,6 +235,7 @@ impl WsssConfig {
                .into();
   }
 
+  /// Save the configuration to a file
   pub fn save_to_file(&self, file_name: &str) -> Result<()> {
     let mut file = File::open(file_name)?;
     let cfg_toml = toml::to_string(self)?;
@@ -237,6 +245,8 @@ impl WsssConfig {
   }
 }
 
+/// Provide a default configuration
+/// filled out with default values
 impl Default for WsssConfig {
   /// Create a WsssConfig with all values
   /// set to default
@@ -249,6 +259,8 @@ impl Default for WsssConfig {
   }
 }
 
+/// Convert a TomlWsssConfig to a fully filled out
+/// WsssConfig replacing None with default values
 impl From<TomlWsssConfig> for WsssConfig {
   fn from(toml_wsss_cfg: TomlWsssConfig) -> WsssConfig {
 
@@ -278,13 +290,15 @@ fn load_etc() -> Option<TomlWsssConfig> {
   None
 }
 
-
+/// Try and and load a config file
+/// specified by the env variable cfg::CONF_FILE_ENV_KEY
 fn load_env_file() -> Option<TomlWsssConfig> {
   env::var(CONF_FILE_ENV_KEY)
     .ok()
     .and_then(|file_name| TomlWsssConfig::parse_file(&file_name).ok())
 }
 
+/// Try and load config from same directory as executable
 fn load_local_file() -> Option<TomlWsssConfig> {
   env::current_exe()
     .ok()
