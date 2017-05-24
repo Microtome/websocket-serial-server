@@ -286,7 +286,9 @@ mod tests {
     should_get_msg(&sub1_channel.1, &sub1_msg, "Subscriber 1");
     should_not_get_a_msg(&sub2_channel.1, "Subscriber 2");
     // unsubscribe sub1 from /dev/ttyUSB2
-    sub_manager.remove_port(&sub1_id.to_string(), &"/dev/ttyUSB2".to_string()).expect("remvoving sub1 from port should not fail.");
+    sub_manager
+      .remove_port(&sub1_id.to_string(), &"/dev/ttyUSB2".to_string())
+      .expect("remvoving sub1 from port should not fail.");
     // No one should get message on ttyUSB2 now
     all_res = sub_manager.broadcast_message_for_port(&"/dev/ttyUSB2".to_string(), sub1_msg.clone());
     assert!(all_res.len() == 0, "There should be no errors");
