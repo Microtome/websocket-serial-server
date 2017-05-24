@@ -88,7 +88,6 @@ impl PortManager {
   }
 
   /// Write data to the port
-  /// To write data to a port the port must have been previously locked by sub_id
   pub fn write_port(&mut self, port_name: &String, data: &[u8]) -> Result<()> {
     match self.open_ports.get_mut(port_name) {
       None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
@@ -146,4 +145,66 @@ impl PortManager {
   pub fn open_ports(&self) -> HashSet<String> {
     HashSet::<String>::from_iter(self.open_ports.keys().map(|k| k.clone()))
   }
+}
+
+#[cfg(test)]
+mod tests {
+
+  use std::io::Write;
+
+  use serialport::SerialPort;
+  use serialport::posix::TTYPort;
+
+  use super::*;
+
+  #[test]
+  #[cfg(unix)]
+  fn test_unix_serialports() {
+
+    let (mut master, mut slave) = TTYPort::pair().expect("Failed to create pseudoterminal pair!");
+
+    slave
+      .set_exclusive(false)
+      .expect("Failed to set exclusive false");
+
+    let serial_msg = "abcdefg";
+
+    if let Some(s_name) = slave.port_name() {
+      let mut port_manager = PortManager::new();
+
+      port_manager
+        .open_port(&s_name)
+        .expect(&format!("Failed to open slave port {}", s_name));
+
+      master
+        .write(serial_msg.as_bytes())
+        .expect("Write to master failed!");
+
+      let res = port_manager.read_all_ports();
+
+      assert_eq!(res.len(), 1, "Should have read one port.");
+
+      for (port_name, value) in res {
+        match value {
+          Ok(bytes) => {
+            let read_msg = String::from_utf8_lossy(&bytes);
+            assert_eq!(
+              serial_msg,
+              read_msg,
+              "Messages should be same '{}' '{}'",
+              serial_msg,
+              read_msg
+            );
+          }
+          Err(e) => panic!("Got error reading port {}", e),
+        }
+      }
+    } else {
+      panic!("Failed to get slave pty name");
+    }
+  }
+
+  // TODO: write to slave, read from master
+
+
 }
