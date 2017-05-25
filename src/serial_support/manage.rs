@@ -329,6 +329,7 @@ impl Manager {
     }
   }
 
+  /// Send a message to a subscriber
   fn send_message(&mut self, sub_id: &String, msg: SerialResponse) {
     if let Err(e) = self.sub_manager.send_message(sub_id, msg) {
       warn!("Error sending serial response to sub_id '{}'", sub_id);
@@ -367,10 +368,13 @@ impl Manager {
   }
 
 
+  /// Check if a subscription exists for a given sub_id
   fn check_sub_id(&self, sub_id: &String) -> Result<()> {
     self.sub_manager.check_subscription_exists(sub_id)
   }
 
+  /// Check if port_name has a write lock for sub_id
+  /// Errors if the port is not writelocked by sub_id
   fn check_owns_writelock(&self, port_name: &String, sub_id: &String) -> Result<()> {
     self
       .writelock_manager

@@ -83,6 +83,7 @@ impl PortManager {
     }
   }
 
+  /// Close a port
   pub fn close_port(&mut self, port_name: &String) {
     // This drops the underlying serial port and box
     self.open_ports.remove(port_name);
@@ -142,7 +143,7 @@ impl PortManager {
     map
   }
 
-  /// Get a vec of open ports
+  /// Get a set of open ports
   pub fn open_ports(&self) -> HashSet<String> {
     HashSet::<String>::from_iter(self.open_ports.keys().map(|k| k.clone()))
   }

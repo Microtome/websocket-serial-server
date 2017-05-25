@@ -21,7 +21,7 @@ impl Subscription {
       .map_err(|e| ErrorKind::SendResponse(e).into())
   }
 
-  // Register interest in a port
+  /// Register interest in a port
   fn add_port(&mut self, port_name: &String) {
     match self.ports.iter().position(|p| p == port_name) {
       None => self.ports.push(port_name.to_string()),
@@ -29,12 +29,12 @@ impl Subscription {
     }
   }
 
-  // Remove interest in a port
+  /// Remove interest in a port
   fn remove_port(&mut self, port_name: &String) {
     self.ports.retain(|p| *p != *port_name);
   }
 
-  // Remove interest in a port
+  /// Remove all ports from this subscription
   fn remove_all_ports(&mut self) {
     self.ports.clear();
   }

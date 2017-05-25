@@ -27,6 +27,7 @@ impl WriteLockManager {
     self.write_locks.get(port_name).is_some()
   }
 
+  /// Is the port locked by someone else
   pub fn is_port_locked_by_someone_else(&self, port_name: &String, sub_id: &String) -> bool {
     match self.write_locks.get(port_name) {
       None => false,
@@ -49,12 +50,12 @@ impl WriteLockManager {
     }
   }
 
-  // Clear a write lock, without checking subscriber id
+  /// Clear a write lock, without checking subscriber id
   pub fn clear_lock(&mut self, port_name: &String) {
     self.write_locks.remove(port_name);
   }
 
-  // Release the write lock for the given port and sub id
+  /// Release the write lock for the given port and sub id
   pub fn unlock_port(&mut self, port_name: &String, sub_id: &String) -> Result<()> {
     match self.is_port_locked_by_someone_else(port_name, sub_id) {
       false => {
@@ -65,6 +66,7 @@ impl WriteLockManager {
     }
   }
 
+  /// If port port_name is locked by sub_id, unlock it 
   pub fn unlock_port_if_locked_by(&mut self, port_name: &String, sub_id: &String) {
     if self.is_port_write_locked_by(port_name, sub_id) {
       // Should not panic since we are the one who locked it
@@ -72,7 +74,7 @@ impl WriteLockManager {
     }
   }
 
-  // Release all write locks held by this sub_id
+  /// Release all write locks held by this sub_id
   pub fn unlock_all_ports_for_sub(&mut self, sub_id: &String) {
     let mut to_delete = Vec::<String>::new();
     for port_name in self.write_locks.keys() {
@@ -89,7 +91,7 @@ impl WriteLockManager {
     }
   }
 
-  // Try and lock the port
+  /// Try and lock the port
   pub fn lock_port(&mut self, port_name: &String, sub_id: &String) -> Result<()> {
     match self.is_port_locked_by_someone_else(port_name, sub_id) {
       false => {
