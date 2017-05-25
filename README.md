@@ -114,13 +114,13 @@ Please read the env_logger docs for more information, but here is a quick exampl
 * [ ] Determine settings to help shrink file size
 * [ ] Add command to reset entire serial port managment subsystem
 if it looks like things are wedged
-* [ ] Switch to dynamic timing loops for all msg handling threads
+* [x] Switch to dynamic timing loops for all msg handling threads
     * [ ] Allow users to specify desired update frequency
-    * [ ] Log if time per loop is exceeded
-* [ ] Configuration file support
-    * [ ] Use [toml](https://github.com/toml-lang/toml)
+    * [x] Log if time per loop is exceeded
+* [x] Configuration file support
+    * [x] Use [toml](https://github.com/toml-lang/toml)
     * [ ] serial port whitelist/blacklist/regex
-    * [ ] Specify ip address to bind to besides local host
+    * [x] Specify ip address to bind to besides local host
 * [ ] Add HTTPS/WSS support
     * [ ] Specify cert locations
 * [ ] Add method to reinitialize serial port subsystem if things
