@@ -2,12 +2,12 @@ language: rust
 
 os: linux
 
-cache: cargo
+# Doesn't seem to do much. 
+# Always rebuilds everything.
+# cache: cargo
 
 before_install:
   - sudo apt-get install libudev-dev
-  #- sudo apt-get install libssl-dev
-  #- sudo apt-get install pkg-config
 
 rust:
   - nightly
