@@ -1,0 +1,16 @@
+language: rust
+
+os: linux
+
+rust:
+  - nightly
+  - stable
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - rust: nightly
+
+script:
+  - cargo build --verbose
+  - RUST_BACKTRACE=1 cargo test --verbose
