@@ -151,6 +151,7 @@ impl PortManager {
 #[cfg(test)]
 mod tests {
 
+  use std::io::Read;
   use std::io::Write;
 
   use serialport::SerialPort;
@@ -177,35 +178,56 @@ mod tests {
         .open_port(&s_name)
         .expect(&format!("Failed to open slave port {}", s_name));
 
-      master
-        .write(serial_msg.as_bytes())
-        .expect("Write to master failed!");
+      // Write to master, read from slave via port manager
+      {
+        master
+          .write(serial_msg.as_bytes())
+          .expect("Write to master failed!");
 
-      let res = port_manager.read_all_ports();
+        let res = port_manager.read_all_ports();
 
-      assert_eq!(res.len(), 1, "Should have read one port.");
+        assert_eq!(res.len(), 1, "Should have read one port.");
 
-      for (port_name, value) in res {
-        match value {
-          Ok(bytes) => {
-            let read_msg = String::from_utf8_lossy(&bytes);
-            assert_eq!(
-              serial_msg,
-              read_msg,
-              "Messages should be same '{}' '{}'",
-              serial_msg,
-              read_msg
-            );
+        for (port_name, value) in res {
+          match value {
+            Ok(bytes) => {
+              let read_msg = String::from_utf8_lossy(&bytes);
+              assert_eq!(
+                serial_msg,
+                read_msg,
+                "Messages should be same '{}' '{}'",
+                serial_msg,
+                read_msg
+              );
+            }
+            Err(e) => panic!("Got error reading port {}", e),
           }
-          Err(e) => panic!("Got error reading port {}", e),
+        }
+      }
+
+      // Write to slave via port manager, read from master
+      {
+        port_manager
+          .write_port(&s_name, serial_msg.as_bytes())
+          .expect("Write to port failed");
+        let mut buffer = vec![0; 4096];
+        if let Ok(bytes_read) = master.read(buffer.as_mut_slice()) {
+          let bytes = buffer[0..bytes_read].to_vec();
+          let read_msg = String::from_utf8_lossy(&bytes);
+          assert_eq!(
+            serial_msg,
+            read_msg,
+            "Messages should be same '{}' '{}'",
+            serial_msg,
+            read_msg
+          );
+
+        } else {
+          panic!("Reading master failed!");
         }
       }
     } else {
       panic!("Failed to get slave pty name");
     }
   }
-
-  // TODO: write to slave, read from master
-
-
 }
