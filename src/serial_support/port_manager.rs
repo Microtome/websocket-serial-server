@@ -21,6 +21,7 @@ impl OpenPort {
     self
       .port
       .write_all(data)
+      .and_then(|_| self.port.flush())
       .map_err(|err| ErrorKind::Io(err).into())
   }
 
