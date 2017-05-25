@@ -1,4 +1,7 @@
 # websocket-serial-server (wsss)
+
+[![Build Status](https://travis-ci.org/DanielJoyce/websocket-serial-server.svg?branch=master)](https://travis-ci.org/DanielJoyce/websocket-serial-server)
+
 Connect to and read / write serial ports over websockets. In Rust
 
 There is a need for a way to interface with hardware for software running in web browsers. WebUSB and the HTML5 serial spec are still immature.
