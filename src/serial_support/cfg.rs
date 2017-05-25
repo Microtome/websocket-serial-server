@@ -2,8 +2,7 @@
 //! the command line, env, and config files
 //!
 //! For information on command line switches, config files,
-//! or env names, check the documentation for Config
-//!
+//! or env names, check the documentation for WsssConfig
 
 use std::convert::Into;
 use std::default::Default;
@@ -206,9 +205,9 @@ impl WsssConfig {
   /// First we try and load a toml config file
   /// specified by the environment variable WSSS_CONF_FILE.
   ///
-  /// If not found, we then try loading /etc/wsss/wsss.toml.
+  /// If not found, we then try loading /etc/wsss/wsss_conf.toml.
   ///
-  /// If not found we then try and load a wsss.toml from the
+  /// If not found we then try and load a wsss_conf.toml from the
   /// directory wsss was launched from.
   ///
   /// Then for any settings loaded from these files, we override them
