@@ -9,16 +9,8 @@
 //!
 //! ```./wsss```
 //!
-//! You can also specift a port:
-//!
-//! ```./wsss -p PORT_NUM``` or ```./wsss --port PORT_NUM```
-//!
-//! When you specify a port, a simple http server will
-//! be bound at "/" on PORT_NUM, and a websocket bound at "/"
-//! on PORT_NUM + 1
-//!
-//! The webpage served at "/" on PORT_NUM provides a convenient
-//! way for testing serial port connectivity
+//! For information on configuration please check out 
+//! the [cfg](../serial_support/cfg/index.html) package in serialsupport
 //!
 //! You can open/close ports, read and write data, and see the
 //! responses. All messages are in JSON format

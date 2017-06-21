@@ -1,8 +1,8 @@
 //! Loads and centralizes configuration from
-//! the command line, env, and config files
+//! config files, env, and command line
 //!
 //! For information on command line switches, config files,
-//! or env names, check the documentation for WsssConfig
+//! or env names, check the documentation for [WsssConfig](struct.WsssConfig.html)
 
 use std::convert::Into;
 use std::default::Default;
@@ -24,13 +24,17 @@ pub const DEFAULT_WS_PORT: u32 = 10081;
 pub const DEFAULT_BIND_ADDR: &str = "127.0.0.1";
 
 /// Suported config file extensions
-pub const SUPPORTED_EXTENSIONS: &[&str] = &["yaml", "yml", "json", "toml"];
+pub const SUPPORTED_EXTENSIONS: &[&str] = &["toml"];
 /// Config file base name
 pub const CONFIG_FILE_NAME: &str = "wsss_conf.toml";
 
+/// Env variable name for specifying a config file
 pub const CONF_FILE_ENV_KEY: &str = "WSSS_CONF_FILE";
+/// Env variable name for specifying address to bind
 pub const BIND_ADDRESS_ENV_KEY: &str = "WSSS_BIND_ADDRESS";
+/// Env variable name for specifying HTTP port
 pub const HTTP_PORT_ENV_KEY: &str = "WSSS_HTTP_PORT";
+/// Env variable name for specifying WS port
 pub const WS_PORT_ENV_KEY: &str = "WSSS_WS_PORT";
 
 const HTTP_PORT_KEY: &str = "http_port";
@@ -163,6 +167,7 @@ fn merge_options<T>(o1: Option<T>, o2: Option<T>) -> Option<T> {
 /// variables
 ///
 /// Sample toml config:
+///
 /// ``` toml
 ///   http_port = 8080
 ///   ws_port = 8082
@@ -203,14 +208,17 @@ impl WsssConfig {
   /// command line arguments, and env vars
   ///
   /// First we try and load a toml config file
-  /// specified by the environment variable WSSS_CONF_FILE.
+  /// specified by the environment variable `WSSS_CONF_FILE`.
   ///
-  /// If not found, we then try loading /etc/wsss/wsss_conf.toml.
+  /// If not found, we then try loading `/etc/wsss/wsss_conf.toml`.
   ///
   /// If not found we then try and load a wsss_conf.toml from the
   /// directory wsss was launched from.
   ///
-  /// Then for any settings loaded from these files, we override them
+  /// Only the contents of the first file found will be loaded
+  /// and then modified by env and commandline variables
+  ///
+  /// Then for any settings loaded from the file, we override them
   /// with any env vars we find, then override with any commandline
   /// parameters
   pub fn load() -> WsssConfig {

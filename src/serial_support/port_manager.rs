@@ -34,7 +34,7 @@ impl OpenPort {
   }
 }
 
-/// Manages ports and their locks
+/// Manages ports and reading / writing to them
 pub struct PortManager {
   /// Maintains list of ports
   open_ports: HashMap<String, OpenPort>,
