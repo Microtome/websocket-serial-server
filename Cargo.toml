@@ -1,6 +1,6 @@
 [package]
 name = "websocket_serial_server"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Daniel Joyce <daniel.a.joyce@gmail.com>"]
 description = "A websocket server providing access to local serial ports"
 readme = "README.md"
@@ -18,9 +18,7 @@ rand = "0.3.15"
 serde = "1.0.2"
 serde_derive = "1.0.2"
 serde_json = "1.0.2"
-##serialport = "1.0.1"
-##serialport = { path = "../serialport-rs" }
-serialport = {git = "https://daniel.a.joyce@gitlab.com/susurrus/serialport-rs.git", branch = "master"}
+serialport = "2.3.0"
 thread-control = "0.1.2"
 toml = "0.4.1"
 websocket = "0.19.1"
