@@ -13,8 +13,9 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 
 use argparse::{ArgumentParser, StoreOption};
-use errors::*;
 use toml;
+
+use crate::errors::*;
 
 /// Default HTTP port to bind to if none given
 pub const DEFAULT_HTTP_PORT: u32 = 10080;

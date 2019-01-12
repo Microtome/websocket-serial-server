@@ -3,8 +3,9 @@ use std::error::Error;
 use std::iter::FromIterator;
 use std::time::Duration;
 
-use errors::*;
 use serialport as sp;
+
+use crate::errors::*;
 
 /// Struct for containing Port information
 struct OpenPort {

@@ -7,13 +7,13 @@ use std::thread;
 
 use base64;
 
-use common::*;
-use dynamic_sleep::DynamicSleep;
-use errors::*;
-use messages::*;
-use port_manager::*;
-use sub_manager::*;
-use writelock_manager::*;
+use crate::common::*;
+use crate::dynamic_sleep::DynamicSleep;
+use crate::errors::*;
+use crate::messages::*;
+use crate::port_manager::*;
+use crate::sub_manager::*;
+use crate::writelock_manager::*;
 
 /// Serial port management module supporting one
 /// writer and multiple readers

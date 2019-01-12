@@ -1,4 +1,5 @@
 [package]
+edition = "2018"
 name = "websocket_serial_server"
 version = "0.2.0"
 authors = ["Daniel Joyce <daniel.a.joyce@gmail.com>"]

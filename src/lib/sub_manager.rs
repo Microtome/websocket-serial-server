@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::Sender;
 
-use errors::*;
-use messages::*;
+use crate::errors::*;
+use crate::messages::*;
 
 /// Subscription
 struct Subscription {

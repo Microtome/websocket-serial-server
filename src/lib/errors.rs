@@ -1,4 +1,4 @@
-use messages::{SerialRequest, SerialResponse};
+use crate::messages::{SerialRequest, SerialResponse};
 
 error_chain! {
 

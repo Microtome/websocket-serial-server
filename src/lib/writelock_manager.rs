@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use errors::*;
+use crate::errors::*;
 
 /// Manages tracking of write locks
 pub struct WriteLockManager {

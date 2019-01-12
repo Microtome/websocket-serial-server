@@ -15,18 +15,8 @@
 //! You can open/close ports, read and write data, and see the
 //! responses. All messages are in JSON format
 
-extern crate argparse;
-extern crate base64;
-extern crate env_logger;
-extern crate hyper;
 #[macro_use]
 extern crate log;
-extern crate rand;
-extern crate serde_json;
-extern crate serialport;
-extern crate websocket;
-
-extern crate lib;
 
 use std::io::Write;
 use std::net::TcpStream;
