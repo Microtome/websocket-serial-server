@@ -22,13 +22,11 @@ extern crate serialport;
 extern crate toml;
 extern crate websocket;
 
-
-
-pub mod common;
 pub mod cfg;
+pub mod common;
 pub mod dynamic_sleep;
 pub mod errors;
-pub mod manage;
+pub mod manager;
 pub mod messages;
 pub mod port_manager;
 pub mod sub_manager;

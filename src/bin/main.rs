@@ -9,8 +9,8 @@
 //!
 //! ```./wsss```
 //!
-//! For information on configuration please check out 
-//! the [cfg](../serial_support/cfg/index.html) package in serialsupport
+//! For information on configuration please check out
+//! the [cfg](../lib/cfg/index.html) package in serialsupport
 //!
 //! You can open/close ports, read and write data, and see the
 //! responses. All messages are in JSON format
@@ -26,30 +26,29 @@ extern crate serde_json;
 extern crate serialport;
 extern crate websocket;
 
-extern crate serial_support;
+extern crate lib;
 
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
-use websocket::client::Writer;
-use websocket::result::WebSocketError;
-use websocket::message::Type;
-use websocket::{Server, Message};
-use websocket::server::upgrade::WsUpgrade;
-use hyper::Server as HttpServer;
 use hyper::net::Fresh;
 use hyper::server::request::Request;
 use hyper::server::response::Response;
-use rand::{Rng, thread_rng};
+use hyper::Server as HttpServer;
+use rand::{thread_rng, Rng};
+use websocket::client::Writer;
+use websocket::message::Type;
+use websocket::result::WebSocketError;
+use websocket::server::upgrade::WsUpgrade;
+use websocket::{Message, Server};
 
-use serial_support::dynamic_sleep::DynamicSleep;
-use serial_support::errors as e;
-use serial_support::manage::Manager;
-use serial_support::messages::*;
-use serial_support::cfg::*;
-
+use lib::cfg::*;
+use lib::dynamic_sleep::DynamicSleep;
+use lib::errors as e;
+use lib::manager::Manager;
+use lib::messages::*;
 
 /// Max number of failures we allow when trying to send
 /// data to client before exiting
@@ -58,7 +57,6 @@ pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 
 /// Launches wsss
 pub fn main() {
-
   // Init logger
   env_logger::init().expect("Initialization of logging system failed!");
 
@@ -90,27 +88,16 @@ pub fn main() {
 
   // Start listening for http connections
   let http_server = HttpServer::http(format!("{}:{}", cfg.bind_address, cfg.http_port)).expect(
-    &format!(
-      "Failed to create http server on port {}",
-      cfg.http_port
-    ),
+    &format!("Failed to create http server on port {}", cfg.http_port),
   );
 
-  thread::spawn(
-    move || {
-      http_server
-        .handle(http_handler)
-        .expect(&"Failed to listen");
-    },
-  );
+  thread::spawn(move || {
+    http_server.handle(http_handler).expect(&"Failed to listen");
+  });
 
   // Start listening for WebSocket connections
-  let ws_server = Server::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port)).expect(
-    &format!(
-      "Failed bind on websocket port {}",
-      cfg.ws_port
-    ),
-  );
+  let ws_server = Server::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port))
+    .expect(&format!("Failed bind on websocket port {}", cfg.ws_port));
 
   // Continuously iterate over connections,
   // spawning handlers
@@ -128,7 +115,6 @@ pub fn main() {
   }
 }
 
-
 /// Spawn a websocket handler into its own thread
 fn spawn_ws_handler(
   sub_id: String,
@@ -136,9 +122,8 @@ fn spawn_ws_handler(
   sreq_tx_clone: Sender<(String, SerialRequest)>,
   connection: WsUpgrade<TcpStream>,
 ) {
-  thread::spawn(move || ws_handler(sub_id, &sub_tx_clone, &sreq_tx_clone, connection),);
+  thread::spawn(move || ws_handler(sub_id, &sub_tx_clone, &sreq_tx_clone, connection));
 }
-
 
 /// Websocket handler
 fn ws_handler(
@@ -147,13 +132,11 @@ fn ws_handler(
   sreq_tx: &Sender<(String, SerialRequest)>,
   connection: WsUpgrade<TcpStream>,
 ) {
-
   if !connection
-        .protocols()
-        .contains(&"websocket-serial-json".to_string()) {
-    connection
-      .reject()
-      .expect(&"Connection rejection failed.");
+    .protocols()
+    .contains(&"websocket-serial-json".to_string())
+  {
+    connection.reject().expect(&"Connection rejection failed.");
     return;
   }
 
@@ -167,12 +150,10 @@ fn ws_handler(
 
   // Register sub_id with manager
   sub_tx
-    .send(
-      SubscriptionRequest {
-        sub_id: sub_id.clone(),
-        subscriber: sub_resp_tx,
-      },
-    )
+    .send(SubscriptionRequest {
+      sub_id: sub_id.clone(),
+      subscriber: sub_resp_tx,
+    })
     .expect(&format!("{}: Registering with manager failed.", sub_id));
 
   let client = connection
@@ -195,14 +176,12 @@ fn ws_handler(
   let mut dynamic_sleep = DynamicSleep::new("main");
 
   'msg_loop: loop {
-
     dynamic_sleep.sleep();
 
     // Try and read a WS message
     match receiver.recv_message::<Message, _, _>() {
       Ok(message) => {
         match message.opcode {
-
           Type::Close => {
             let message = Message::close();
             sender
@@ -211,15 +190,12 @@ fn ws_handler(
             // Send close request to cleanup resources
             sreq_tx
               .send((sub_id.clone(), SerialRequest::Close { port: None }))
-              .unwrap_or_else(
-                |e| {
-                  warn!(
-                    "Client exit cleanup failed for sub_id '{}', cause '{}'",
-                    sub_id,
-                    e
-                  )
-                },
-              );
+              .unwrap_or_else(|e| {
+                warn!(
+                  "Client exit cleanup failed for sub_id '{}', cause '{}'",
+                  sub_id, e
+                )
+              });
             info!("{}: Client {} disconnected", sub_id, ip);
             break 'msg_loop;
           }
@@ -232,7 +208,6 @@ fn ws_handler(
           }
 
           _ => {
-
             // Get the payload, in a lossy manner
             let msg = String::from_utf8_lossy(&message.payload);
 
@@ -243,7 +218,6 @@ fn ws_handler(
                   Err(err) => {
                     let error = e::ErrorKind::SendRequest(err).into();
                     send_serial_response_error(&sub_id, &mut sender, error);
-
                   }
                   _ => {}
                 };
@@ -266,28 +240,19 @@ fn ws_handler(
 
     // Send on any serial responses
     match sub_resp_rx.try_recv() {
-      Ok(resp) => {
-        match serde_json::to_string(&resp) {
-          Ok(json) => {
-            let reply = Message::text(json.clone());
-            sender
-              .send_message(&reply)
-              .unwrap_or_else(
-                |e| {
-                  send_error_count += 1;
-                  info!(
-                    "{}: Could not send message '{}' to client '{}', cause '{}'",
-                    sub_id,
-                    json,
-                    ip,
-                    e
-                  )
-                },
-              );
-          }
-          Err(_) => {}
+      Ok(resp) => match serde_json::to_string(&resp) {
+        Ok(json) => {
+          let reply = Message::text(json.clone());
+          sender.send_message(&reply).unwrap_or_else(|e| {
+            send_error_count += 1;
+            info!(
+              "{}: Could not send message '{}' to client '{}', cause '{}'",
+              sub_id, json, ip, e
+            )
+          });
         }
-      }
+        Err(_) => {}
+      },
       _ => { /*Logging*/ }
     };
 
@@ -301,7 +266,6 @@ fn ws_handler(
   }
 
   info!("{}: Shutting down!", sub_id);
-
 }
 
 /// Send an error to the given subscriber
@@ -313,19 +277,14 @@ fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, e
   serde_json::to_string(&error)
     .map_err(|err| e::ErrorKind::Json(err))
     .map(|json| Message::text(json))
-    .map(
-      |msg| {
-        sender
-          .send_message::<Message, _>(&msg)
-          .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
-      },
-    )
-    .unwrap_or_else(
-      |_| {
-        warn!("{}: Problem sending bad json error response", sub_id);
-        Ok(())
-      },
-    )
+    .map(|msg| {
+      sender
+        .send_message::<Message, _>(&msg)
+        .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
+    })
+    .unwrap_or_else(|_| {
+      warn!("{}: Problem sending bad json error response", sub_id);
+      Ok(())
+    })
     .is_ok(); // This shouldn't be needed?
-
 }

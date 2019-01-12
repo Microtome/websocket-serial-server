@@ -3,9 +3,8 @@ use std::error::Error;
 use std::iter::FromIterator;
 use std::time::Duration;
 
-use serialport as sp;
 use errors::*;
-
+use serialport as sp;
 
 /// Struct for containing Port information
 struct OpenPort {
@@ -43,7 +42,9 @@ pub struct PortManager {
 impl PortManager {
   /// Create a new PortManager instance
   pub fn new() -> PortManager {
-    PortManager { open_ports: HashMap::new() }
+    PortManager {
+      open_ports: HashMap::new(),
+    }
   }
 
   /// Has the port been opened
@@ -58,11 +59,9 @@ impl PortManager {
 
   /// Open a port
   pub fn open_port(&mut self, port_name: &String) -> Result<()> {
-
     if self.is_port_open(port_name) {
       Ok(())
     } else {
-
       let sp_settings = sp::SerialPortSettings {
         baud_rate: sp::BaudRate::Baud115200,
         data_bits: sp::DataBits::Eight,
@@ -107,7 +106,6 @@ impl PortManager {
     }
   }
 
-
   /// Read all currently open ports, return a hashmap of
   /// ports to Result<Vec<u8>>
   pub fn read_all_ports(&mut self) -> HashMap<String, Result<Vec<u8>>> {
@@ -136,7 +134,6 @@ impl PortManager {
               map.insert(port_name.to_string(), Err(e.into()));
             }
           }
-
         }
       }
     }
@@ -155,15 +152,14 @@ mod tests {
   use std::io::Read;
   use std::io::Write;
 
-  use serialport::SerialPort;
   use serialport::posix::TTYPort;
+  use serialport::SerialPort;
 
   use super::*;
 
   #[test]
   #[cfg(unix)]
   fn test_unix_serialports() {
-
     let (mut master, mut slave) = TTYPort::pair().expect("Failed to create pseudoterminal pair!");
 
     slave
@@ -194,11 +190,9 @@ mod tests {
             Ok(bytes) => {
               let read_msg = String::from_utf8_lossy(&bytes);
               assert_eq!(
-                serial_msg,
-                read_msg,
+                serial_msg, read_msg,
                 "Messages should be same '{}' '{}'",
-                serial_msg,
-                read_msg
+                serial_msg, read_msg
               );
             }
             Err(e) => panic!("Got error reading port {}", e),
@@ -216,13 +210,10 @@ mod tests {
           let bytes = buffer[0..bytes_read].to_vec();
           let read_msg = String::from_utf8_lossy(&bytes);
           assert_eq!(
-            serial_msg,
-            read_msg,
+            serial_msg, read_msg,
             "Messages should be same '{}' '{}'",
-            serial_msg,
-            read_msg
+            serial_msg, read_msg
           );
-
         } else {
           panic!("Reading master failed!");
         }

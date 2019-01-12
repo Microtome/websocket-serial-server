@@ -11,7 +11,7 @@ use serde_json;
 use std::fmt;
 use std::sync::mpsc::Sender;
 
-#[derive( Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct SubscriptionRequest {
   pub sub_id: String,
   pub subscriber: Sender<SerialResponse>,
@@ -30,9 +30,9 @@ pub struct SubscriptionRequest {
 pub enum SerialRequest {
   /// Open a port for reading
   ///
-  /// Opening the same port more than once is 
+  /// Opening the same port more than once is
   /// okay and has no ill effects
-  /// 
+  ///
   ///``` json
   /// JSON:
   /// {"Open":{"port":"/dev/ttyUSB"}}
@@ -97,7 +97,7 @@ pub enum SerialRequest {
   /// List available serial ports
   ///
   /// ``` json
-  /// JSON: 
+  /// JSON:
   /// {"List":{}}
   /// ```
   List {},
@@ -105,10 +105,8 @@ pub enum SerialRequest {
 
 impl fmt::Display for SerialRequest {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let json = serde_json::to_string(self).unwrap_or(
-      "Display SerialRequest: Serialization Failed!"
-        .to_string(),
-    );
+    let json = serde_json::to_string(self)
+      .unwrap_or("Display SerialRequest: Serialization Failed!".to_string());
     write!(f, "{}", json)
   }
 }
@@ -124,7 +122,7 @@ pub enum SerialResponse {
   ///            "description":"Error reading serial port",
   ///            "display":"Error reading serial port '/dev/ttyUSB0'"
   ///          }}
-  /// 
+  ///
   /// ```
   Error {
     description: String,
@@ -146,17 +144,17 @@ pub enum SerialResponse {
   ///           "data": "SGVsbG8gV29ybGQ=",
   ///           "base64": true
   ///          }}
-  /// ``` 
+  /// ```
   Read {
     port: String,
     data: String,
     base64: Option<bool>,
   },
   /// Port was closed
-  /// 
+  ///
   /// Sent in response to SerialRequest::Close
   /// or sent when the server detects that a serial
-  /// port is misbehaving, closes it, and then 
+  /// port is misbehaving, closes it, and then
   /// notifies the clients
   ///
   ///``` json
@@ -165,7 +163,7 @@ pub enum SerialResponse {
   ///```
   Closed { port: String },
   /// Port was opened
-  /// 
+  ///
   /// Sent in response to SerialRequest::Open
   ///
   ///``` json
@@ -176,7 +174,7 @@ pub enum SerialResponse {
   /// Command successful
   Ok { msg: String },
   /// Wrote data
-  /// 
+  ///
   /// Sent in response to SerialReques::Write
   ///
   /// Notifies the client that the request to write
@@ -191,7 +189,7 @@ pub enum SerialResponse {
   /// TODO: Return hash of data written?
   Wrote { port: String },
   /// Port successfully writelocked
-  /// 
+  ///
   /// Sent in response to SerialReques::WriteLock
   ///
   /// Notifies the client that the WriteLock was received
@@ -203,12 +201,12 @@ pub enum SerialResponse {
   /// ```
   WriteLocked { port: String },
   /// WriteLocks on Port(s) successfully released
-  /// 
+  ///
   /// Sent in response to SerialReques::ReleaseWriteLock
   ///
   /// Notifies the client that the ReleaseWriteLock was received
   /// and completed successfully
-  /// 
+  ///
   /// If ReleaseWrite was sent without a port specified, then
   /// it will be empty in the response. This means that all
   /// write locks held on behalf of the client were released.
@@ -229,10 +227,9 @@ pub enum SerialResponse {
   List { ports: Vec<String> },
 }
 
-
 /*
 // TODO: Uncomment when new serialport module version drops
-/// Needed for Serde Support as 
+/// Needed for Serde Support as
 /// SerialPortInfo is in seperate module
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(remote = "SerialPortInfo")]
@@ -275,13 +272,10 @@ pub struct UsbPortInfoDef {
 }
 */
 
-
 impl fmt::Display for SerialResponse {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let json = serde_json::to_string(self).unwrap_or(
-      "Display SerialResponse: Serialization Failed!"
-        .to_string(),
-    );
+    let json = serde_json::to_string(self)
+      .unwrap_or("Display SerialResponse: Serialization Failed!".to_string());
     write!(f, "{}", json)
   }
 }

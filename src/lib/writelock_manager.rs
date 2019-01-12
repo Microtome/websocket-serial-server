@@ -11,7 +11,9 @@ pub struct WriteLockManager {
 impl WriteLockManager {
   /// Create a new WriteLockManager instance
   pub fn new() -> WriteLockManager {
-    WriteLockManager { write_locks: HashMap::new() }
+    WriteLockManager {
+      write_locks: HashMap::new(),
+    }
   }
 
   /// Is the port write locked by the given sub_id
@@ -66,7 +68,7 @@ impl WriteLockManager {
     }
   }
 
-  /// If port port_name is locked by sub_id, unlock it 
+  /// If port port_name is locked by sub_id, unlock it
   pub fn unlock_port_if_locked_by(&mut self, port_name: &String, sub_id: &String) {
     if self.is_port_write_locked_by(port_name, sub_id) {
       // Should not panic since we are the one who locked it
@@ -79,10 +81,11 @@ impl WriteLockManager {
     let mut to_delete = Vec::<String>::new();
     for port_name in self.write_locks.keys() {
       if self
-           .write_locks
-           .get(port_name)
-           .map(|sid| sid == sub_id)
-           .unwrap_or(false) {
+        .write_locks
+        .get(port_name)
+        .map(|sid| sid == sub_id)
+        .unwrap_or(false)
+      {
         to_delete.push(port_name.to_string());
       }
     }
@@ -102,7 +105,6 @@ impl WriteLockManager {
       }
       true => Err(ErrorKind::AlreadyWriteLocked(port_name.to_string()).into()),
     }
-
   }
 }
 
@@ -112,7 +114,6 @@ mod tests {
 
   #[test]
   fn test_locking() {
-
     /// Utility method
     fn check_not_locked_by_anyone(
       wl_manager: &WriteLockManager,
@@ -133,7 +134,6 @@ mod tests {
           "Port '{}' should not be locked by someone else",
           port
         );
-
       }
     }
 

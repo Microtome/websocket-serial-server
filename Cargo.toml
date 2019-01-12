@@ -10,6 +10,7 @@ license-file = "LICENSE"
 argparse = "0.2.1"
 base64 = "0.5.1"
 daemonize = "0.2.3"
+debug_stub_derive = "0.3.0"
 env_logger = "0.4.2"
 error-chain = "0.10.0"
 hyper = "0.10.9"
@@ -27,9 +28,9 @@ websocket = "0.19.1"
 tempfile = "2.1.5"
 
 [lib]
-name="serial_support"
-path="src/serial_support/mod.rs"
+name="lib"
+path="src/lib/mod.rs"
 
 [[bin]]
 name = "wsss"
-path = "src/main.rs"
+path = "src/bin/main.rs"

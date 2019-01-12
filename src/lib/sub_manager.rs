@@ -52,7 +52,9 @@ pub struct SubscriptionManager {
 impl SubscriptionManager {
   /// Create a new SubscriptionManager instance
   pub fn new() -> SubscriptionManager {
-    SubscriptionManager { subscriptions: HashMap::new() }
+    SubscriptionManager {
+      subscriptions: HashMap::new(),
+    }
   }
 
   /// Add a port to a subscription
@@ -65,7 +67,6 @@ impl SubscriptionManager {
       None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
     }
   }
-
 
   /// Remove a single port from a given subscription or all subscriptions
   pub fn remove_port(&mut self, sub_id: &String, port_name: &String) -> Result<()> {
@@ -88,14 +89,12 @@ impl SubscriptionManager {
   /// Remove all ports from a single subscription or all subscriptions
   pub fn clear_ports(&mut self, sub_id: Option<&String>) {
     match sub_id {
-      Some(sid) => {
-        match self.subscriptions.get_mut(sid) {
-          Some(sub) => {
-            sub.ports.clear();
-          }
-          None => {}
+      Some(sid) => match self.subscriptions.get_mut(sid) {
+        Some(sub) => {
+          sub.ports.clear();
         }
-      }
+        None => {}
+      },
       None => {
         for (_, sub) in self.subscriptions.iter_mut() {
           sub.ports.clear();
@@ -109,12 +108,10 @@ impl SubscriptionManager {
     self
       .subscriptions
       .entry(sub.sub_id)
-      .or_insert(
-        Subscription {
-          subscriber: sub.subscriber,
-          ports: Vec::new(),
-        },
-      );
+      .or_insert(Subscription {
+        subscriber: sub.subscriber,
+        ports: Vec::new(),
+      });
   }
 
   /// Check if subscription exists, otherwise return error
@@ -134,12 +131,10 @@ impl SubscriptionManager {
   pub fn send_message(&self, sub_id: &String, msg: SerialResponse) -> Result<()> {
     match self.subscriptions.get(sub_id) {
       None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
-      Some(sub) => {
-        sub
-          .subscriber
-          .send(msg)
-          .map_err(|e| ErrorKind::SendResponse(e).into())
-      }
+      Some(sub) => sub
+        .subscriber
+        .send(msg)
+        .map_err(|e| ErrorKind::SendResponse(e).into()),
     }
   }
 
@@ -161,16 +156,11 @@ impl SubscriptionManager {
   pub fn broadcast_message_for_port(&self, port_name: &String, msg: SerialResponse) -> Vec<Error> {
     debug!(
       "Broadcasting '{}' to all subscribers registered on port {}",
-      &msg,
-      port_name
+      &msg, port_name
     );
     let mut res = Vec::new();
     for (sub_id, sub) in self.subscriptions.iter() {
-      if sub
-           .ports
-           .iter()
-           .position(|p| *p == *port_name)
-           .is_some() {
+      if sub.ports.iter().position(|p| *p == *port_name).is_some() {
         match self.send_message(sub_id, msg.clone()) {
           Err(e) => res.push(e),
           _ => debug!("  Broadcast to '{}' was successful", sub_id),
@@ -195,13 +185,12 @@ mod tests {
 
   use std::collections::HashSet;
   use std::iter::FromIterator;
-  use std::sync::mpsc::{Receiver, channel};
+  use std::sync::mpsc::{channel, Receiver};
 
   use super::*;
 
   #[test]
   fn test_subscriptions() {
-
     fn should_get_msg(
       rcvr: &Receiver<SerialResponse>,
       serial_resp: &SerialResponse,
@@ -225,8 +214,7 @@ mod tests {
       if let Ok(resp) = rcvr.try_recv() {
         panic!(
           "{} should not have recieved anything, got {:?}",
-          fail_tag,
-          resp
+          fail_tag, resp
         );
       }
     }
@@ -266,13 +254,17 @@ mod tests {
     // Add subscriber2, but provide no ports
     sub_manager.add_subscription(sub2_req);
     // Broadcast a message to everyone
-    let all_subscribers_msg = SerialResponse::Ok { msg: "Broadcast all!".to_string() };
+    let all_subscribers_msg = SerialResponse::Ok {
+      msg: "Broadcast all!".to_string(),
+    };
     let mut all_res = sub_manager.broadcast_message(all_subscribers_msg.clone());
     assert!(all_res.len() == 0, "There should be no errors");
     should_get_msg(&sub1_channel.1, &all_subscribers_msg, "Subscriber 1");
     should_get_msg(&sub2_channel.1, &all_subscribers_msg, "Subscriber 2");
     // Send message to one subscriber
-    let sub1_msg = SerialResponse::Ok { msg: "Only subscriber 1 should see this!".to_string() };
+    let sub1_msg = SerialResponse::Ok {
+      msg: "Only subscriber 1 should see this!".to_string(),
+    };
     sub_manager
       .send_message(&sub1_id.to_string(), sub1_msg.clone())
       .expect("Send to subscriber 1 should work!");

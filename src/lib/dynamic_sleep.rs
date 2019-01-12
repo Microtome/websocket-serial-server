@@ -3,8 +3,8 @@
 //! that adheres as close as possible to a
 //! specified update rate in a loop
 
-use std::time::{Instant, Duration};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use log::LogLevel::Warn;
 

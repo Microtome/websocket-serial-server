@@ -54,21 +54,16 @@ impl TomlWsssConfig {
   /// Convert to a WsssConfig with default values
   /// substituted for missing values
   pub fn to_config(self) -> Result<WsssConfig> {
-
-    let addr_string: String = self
-      .bind_address
-      .unwrap_or(DEFAULT_BIND_ADDR.to_string());
+    let addr_string: String = self.bind_address.unwrap_or(DEFAULT_BIND_ADDR.to_string());
 
     let ip_addr = Ipv4Addr::from_str(&addr_string)?;
     // .map_err(|e| ErrorKind::IpAddr(e).into())?;
 
-    Ok(
-      WsssConfig {
-        http_port: self.http_port.unwrap_or(DEFAULT_HTTP_PORT),
-        ws_port: self.ws_port.unwrap_or(DEFAULT_WS_PORT),
-        bind_address: ip_addr,
-      },
-    )
+    Ok(WsssConfig {
+      http_port: self.http_port.unwrap_or(DEFAULT_HTTP_PORT),
+      ws_port: self.ws_port.unwrap_or(DEFAULT_WS_PORT),
+      bind_address: ip_addr,
+    })
   }
 
   /// Merge partial configuration read from different sources
@@ -84,7 +79,6 @@ impl TomlWsssConfig {
   /// Parse the command line returning a config with
   /// defaults overridden by commandline values.
   pub fn parse_cmdline() -> TomlWsssConfig {
-
     let mut port: Option<u32> = None;
     let mut ws_port: Option<u32> = None;
     let mut bind_address: Option<String> = None;
@@ -96,8 +90,11 @@ impl TomlWsssConfig {
         .add_option(&["-p", "--http_port"], StoreOption, "Http Port");
       ap.refer(&mut ws_port)
         .add_option(&["-w", "--ws_port"], StoreOption, "Websocket Port");
-      ap.refer(&mut bind_address)
-        .add_option(&["-a", "--bind_address"], StoreOption, "Bind Address");
+      ap.refer(&mut bind_address).add_option(
+        &["-a", "--bind_address"],
+        StoreOption,
+        "Bind Address",
+      );
       ap.parse_args_or_exit();
     }
 
@@ -222,7 +219,6 @@ impl WsssConfig {
   /// with any env vars we find, then override with any commandline
   /// parameters
   pub fn load() -> WsssConfig {
-
     let file_cfg = load_env_file()
       .or_else(|| load_etc())
       .or_else(|| load_local_file())
@@ -239,7 +235,7 @@ impl WsssConfig {
         TomlWsssConfig::merge(file_cfg, WsssConfig::default()),
       ),
     )
-               .into();
+    .into();
   }
 
   /// Save the configuration to a file
@@ -270,7 +266,6 @@ impl Default for WsssConfig {
 /// WsssConfig replacing None with default values
 impl From<TomlWsssConfig> for WsssConfig {
   fn from(toml_wsss_cfg: TomlWsssConfig) -> WsssConfig {
-
     let addr_string: String = toml_wsss_cfg
       .bind_address
       .unwrap_or(DEFAULT_BIND_ADDR.to_string());
@@ -309,13 +304,11 @@ fn load_env_file() -> Option<TomlWsssConfig> {
 fn load_local_file() -> Option<TomlWsssConfig> {
   env::current_exe()
     .ok()
-    .and_then(
-      |mut dir| {
-        dir.pop();
-        Some(dir)
-      },
-    )
-    .and_then(|file| TomlWsssConfig::parse_file(&file.to_string_lossy()).ok(),)
+    .and_then(|mut dir| {
+      dir.pop();
+      Some(dir)
+    })
+    .and_then(|file| TomlWsssConfig::parse_file(&file.to_string_lossy()).ok())
 }
 
 #[cfg(test)]
@@ -341,20 +334,17 @@ mod tests {
     let cfg = WsssConfig::default();
     let def_bind_addr = Ipv4Addr::from_str(DEFAULT_BIND_ADDR).unwrap();
     assert_eq!(
-      cfg.http_port,
-      DEFAULT_HTTP_PORT,
+      cfg.http_port, DEFAULT_HTTP_PORT,
       "Http port should be '{}'",
       DEFAULT_HTTP_PORT
     );
     assert_eq!(
-      cfg.ws_port,
-      DEFAULT_WS_PORT,
+      cfg.ws_port, DEFAULT_WS_PORT,
       "WS port should be '{}'",
       DEFAULT_WS_PORT
     );
     assert_eq!(
-      cfg.bind_address,
-      def_bind_addr,
+      cfg.bind_address, def_bind_addr,
       "bind address should be '{}'",
       DEFAULT_BIND_ADDR
     );
@@ -377,13 +367,10 @@ mod tests {
     let toml_cfg: TomlWsssConfig = toml::from_str(&contents).unwrap();
     let read_cfg = WsssConfig::from(toml_cfg);
     assert_eq!(
-      cfg,
-      read_cfg,
+      cfg, read_cfg,
       "Configuration '{}' should equal '{}'",
-      cfg_str,
-      contents
+      cfg_str, contents
     );
   }
-
 
 }
