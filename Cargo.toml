@@ -8,6 +8,8 @@ readme = "README.md"
 license-file = "LICENSE"
 
 [dependencies]
+actix = "0.7.9"
+actix-web = "0.7.17"
 argparse = "0.2.1"
 base64 = "0.5.1"
 daemonize = "0.2.3"
