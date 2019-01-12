@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<!-- This file is inlined and stored in the final binary -->
+<!-- TODO: Add support for binary data -->
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>WebSocket Test</title>
+	<style>
+		* {
+			font-family: sans-serif;
+			box-sizing: border-box;
+			font-size: 14px;
+		}
+
+		.container {
+			display: flex;
+		}
+
+		.flex-row {
+			flex-flow: row nowrap;
+			align-items: stretch;
+		}
+
+		.flex-col {
+			flex-flow: column nowrap;
+			align-items: stretch;
+		}
+
+		textarea {
+			margin: 5px;
+		}
+
+		#data {
+			flex-grow: 2;
+		}
+
+		#msgLogDiv {
+			flex-basis: 40%
+		}
+
+		.flex-grow0 {
+			flex-grow: 0;
+		}
+
+		.flex-grow1 {
+			flex-grow: 1;
+		}
+
+		p#received {
+			height: 400px;
+		}
+
+		.log {
+			margin: 5px;
+		}
+
+		.messaging {
+			height: 300px;
+		}
+
+		.scroll {
+			overflow: scroll;
+		}
+	</style>
+</head>
+
+<body>
+	<button type="button" onclick="listPorts(event);">Refresh Ports</button>
+	<br>
+	<br>
+	<label>Serial Port:&nbsp;<select id="selectPort"></select></label>
+	<button type="button" onclick="openPort(event);">Open</button>
+	<button type="button" onclick="closePort(event);">Close</button>
+	<button type="button" onclick="closeAllPorts(event);">Close All</button>
+	<button type="button" onclick="lockPort(event);">Write Lock</button>
+	<button type="button" onclick="unlockPort(event);">Release Lock</button>
+	<br>
+	<br>
+	<div class="container flex-row messaging">
+		<textarea id="data"></textarea>
+		<div id="msgLogDiv" class="container flex-col">
+			<div class="flex-grow0">
+				<strong>Command Replies:</strong>&nbsp;
+				<button type="button" onclick="clearMsgLog(event);">Clear</button>
+			</div>
+			<p class="log scroll flex-grow1" id="msgLog"></p>
+		</div>
+	</div>
+	<br>
+	<button type="button" onclick="writeData(event);">Write Data</button>
+	<br>
+	<br>
+	<strong>Data Read:</strong> &nbsp;
+	<button type="button" onclick="clearReadData();">Clear</button>
+	<p class="log scroll" id="received">
+	</p>
+</body>
+<script>
+	let __WS_PORT__ = 8081;
+	let socket = new WebSocket("ws://127.0.0.1:${wsp}".replace("${wsp}", __WS_PORT__), "websocket-serial-json");
+
+	socket.onopen = (event) => {
+		listPorts();
+	}
+
+	// Websocket message handler
+	socket.onmessage = (event) => {
+		try {
+			let obj = JSON.parse(event.data);
+			if (obj["Read"] !== undefined) {
+				let received = document.getElementById("received");
+				let br = document.createElement("BR");
+				let text = document.createTextNode(event.data);
+				received.insertBefore(br, received.firstChild);
+				received.insertBefore(text, received.firstChild);
+			} else {
+				if (obj["List"]) {
+					let ports = obj["List"]["ports"];
+					updatePortList(ports);
+				}
+				updateDataReadDisplay(event.data);
+			}
+		} catch (e) {
+			console.error("Error handling ws message", e, event);
+		}
+	};
+
+	function updateDataReadDisplay(data) {
+		let log = document.getElementById("msgLog");
+		let br = document.createElement("BR");
+		let text = document.createTextNode(event.data);
+		log.insertBefore(br, log.firstChild);
+		log.insertBefore(text, log.firstChild);
+	}
+
+	// Close Port
+	function closePort(event) {
+		let portName = getSelectedPort();
+		let msg = {
+			"Close": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// Close Port
+	function closeAllPorts(event) {
+		let portName = getSelectedPort();
+		let msg = {
+			"Close": {}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// OpenPort 
+	function openPort(event) {
+		let portName = getSelectedPort();
+		let msg = {
+			"Open": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// ListPorts 
+	function listPorts(event) {
+		let msg = {
+			"List": {}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// LockPort
+	function lockPort(event) {
+		let portName = getSelectedPort();
+		let msg = {
+			"WriteLock": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// UnlockPort
+	function unlockPort(event) {
+		let portName = getSelectedPort();
+		let msg = {
+			"ReleaseWriteLock": {
+				"port": portName
+			}
+		};
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// WriteData 
+	function writeData(event) {
+		let portName = getSelectedPort();
+		let data = document.getElementById("data").value;
+		let msg = {
+			"Write": {
+				"port": portName,
+				"data": data
+			}
+		}
+		socket.send(JSON.stringify(msg));
+		return false;
+	}
+
+	// Clear read data view 
+	function clearReadData(event) {
+		document.getElementById("received").innerHTML = '';
+		return false;
+	}
+
+	// Clear Msg Log 
+	function clearMsgLog(event) {
+		document.getElementById("msgLog").innerHTML = '';
+		return false;
+	}
+
+	function updatePortList(ports) {
+		let selectPort = document.getElementById("selectPort");
+		let selectedPort = getSelectedPort();
+		selectPort.innerHTML = '';
+		ports.forEach((p) => {
+			let option = document.createElement("OPTION");
+			option.innerText = p;
+			option.value = p;
+			if (p === selectedPort) {
+				option.selected = true;
+			}
+			selectPort.appendChild(option);
+		});
+	}
+
+	function getSelectedPort() {
+		let selectPort = document.getElementById("selectPort");
+		let selectedPort = null;
+		if (selectPort.selectedIndex !== -1) {
+			selectedPort = selectPort.options[selectPort.selectedIndex].value
+		}
+		return selectedPort;
+	}
+
+</script>
+
+</html>
