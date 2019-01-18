@@ -3,18 +3,22 @@
 //! ( SerialRequest::* ) and their responses by
 //! by the server ( SerialReponse::* )
 
-use serde_json;
-
 // TODO: use when new version drops
 //use serialport::{SerialPortInfo,UsbPortInfo,SerialPortType};
 
+use serde_json;
+
+use actix::prelude::*;
+
 use std::fmt;
-use std::sync::mpsc::Sender;
 
 #[derive(Clone, Debug)]
-pub struct SubscriptionRequest {
+pub struct SubscriptionRequest<A>
+where
+  A: Actor + Handler<SerialResponse>,
+{
   pub sub_id: String,
-  pub subscriber: Sender<SerialResponse>,
+  pub subscriber: Addr<A>,
 }
 
 /// Represents the valid json requests that can be made
@@ -26,7 +30,7 @@ pub struct SubscriptionRequest {
 ///
 /// Requests that fail or can not be met will result
 /// in SerialResponse::Error responses
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Message, PartialEq)]
 pub enum SerialRequest {
   /// Open a port for reading
   ///
@@ -112,7 +116,7 @@ impl fmt::Display for SerialRequest {
 }
 
 /// Represents the valid json responses that can be made
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Message, PartialEq)]
 pub enum SerialResponse {
   /// Error response
   ///
