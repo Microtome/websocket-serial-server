@@ -12,14 +12,41 @@ use actix::prelude::*;
 
 use std::fmt;
 
-#[derive(Clone, Debug)]
-pub struct SubscriptionRequest<A>
-where
-  A: Actor + Handler<SerialResponse>,
-{
-  pub sub_id: String,
-  pub subscriber: Addr<A>,
+#[derive(Clone, Message)]
+pub struct CommandRequest {
+  pub address: Recipient<CommandResponse>,
+  pub request: SerialRequest,
 }
+
+impl fmt::Debug for CommandRequest {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(
+      f,
+      "CommandResponse {{ address_ptr: {:p} request: {} }}",
+      &self.address, self.request
+    )
+  }
+}
+
+#[derive(Clone, Message)]
+pub struct CommandResponse {
+  pub address: Recipient<CommandRequest>,
+  pub response: SerialResponse,
+}
+
+impl fmt::Debug for CommandResponse {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(
+      f,
+      "CommandResponse {{ address_ptr: {:p} request: {} }}",
+      &self.address, self.response
+    )
+  }
+}
+
+// impl Message for CommandResponse {
+//   type Result = ();
+// }
 
 /// Represents the valid json requests that can be made
 ///
@@ -30,7 +57,7 @@ where
 ///
 /// Requests that fail or can not be met will result
 /// in SerialResponse::Error responses
-#[derive(Serialize, Deserialize, Clone, Debug, Message, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SerialRequest {
   /// Open a port for reading
   ///
@@ -116,7 +143,7 @@ impl fmt::Display for SerialRequest {
 }
 
 /// Represents the valid json responses that can be made
-#[derive(Serialize, Deserialize, Clone, Debug, Message, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SerialResponse {
   /// Error response
   ///
