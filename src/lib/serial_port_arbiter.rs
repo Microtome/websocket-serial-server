@@ -5,7 +5,7 @@ use crate::messages::{CommandRequest, CommandResponse, SerialResponse};
 use actix::prelude::*;
 use log::*;
 
-struct SerialPortArbiter {}
+pub struct SerialPortArbiter {}
 
 impl Actor for SerialPortArbiter {
   type Context = Context<Self>;

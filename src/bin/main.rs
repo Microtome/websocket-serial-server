@@ -28,9 +28,12 @@ extern crate websocket;
 
 extern crate lib;
 
-use actix_web::{http, server, App, HttpRequest, HttpResponse};
+use actix::prelude::*;
+use actix_web::{http, server, ws, App, Error, HttpRequest, HttpResponse};
 
 use lib::cfg::*;
+use lib::serial_port_arbiter::*;
+use lib::websocket_client_actor::*;
 
 /// Max number of failures we allow when trying to send
 /// data to client before exiting
@@ -38,12 +41,16 @@ use lib::cfg::*;
 pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 
 // HTML Template
-const WEBSOCKET_HTML_TEMPLATE: &str = include_str!("./websockets.html");
+const WEBSOCKET_HTML: &str = include_str!("./websockets.html");
 
 fn index_handler(request: &HttpRequest<String>) -> HttpResponse {
   HttpResponse::Ok()
     .content_type("text/html")
     .body(request.state())
+}
+
+fn websocket_handler(req: &HttpRequest<WebsocketClientState>) -> Result<HttpResponse, Error> {
+  ws::start(req, WebsocketClientActor::default())
 }
 
 /// Launches wsss
@@ -54,26 +61,33 @@ pub fn main() {
   // Grab config
   let cfg = WsssConfig::load();
 
-  info!("Using ports {} {}", cfg.http_port, cfg.ws_port);
+  info!("Using port {}", cfg.http_port);
 
-  // html file for landing page
-  let websocket_html = WEBSOCKET_HTML_TEMPLATE.replace(
-    "__WS_PORT__ = 8081",
-    &format!("__WS_PORT__ = {}", cfg.ws_port),
-  );
-
+  // Start Actix runtime
   let system = actix::System::new("wsss");
 
+  // Start chat server actor in separate thread
+  let serial_port_arbiter_address = Arbiter::start(|_| SerialPortArbiter {});
+
+  // Build HTTP Server.
   server::new(move || {
     vec![
       // Index html
-      App::with_state(websocket_html.clone())
+      App::with_state(WebsocketClientState {
+        serial_port_arbiter_address: serial_port_arbiter_address.clone(),
+      })
+      .prefix("/ws")
+      .resource("", |r| r.route().f(websocket_handler))
+      .resource("/", |r| r.route().f(websocket_handler))
+      .boxed(),
+      App::with_state(WEBSOCKET_HTML.to_string().clone())
         .prefix("/")
+        .resource("", |r| r.method(http::Method::GET).f(index_handler))
         .resource("/", |r| r.method(http::Method::GET).f(index_handler))
         .resource("/index.html", |r| {
           r.method(http::Method::GET).f(index_handler)
         })
-        .finish(),
+        .boxed(),
     ]
   })
   .bind(format!("{}:{}", cfg.bind_address, cfg.http_port))

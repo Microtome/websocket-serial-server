@@ -19,8 +19,6 @@ use crate::errors::*;
 
 /// Default HTTP port to bind to if none given
 pub const DEFAULT_HTTP_PORT: u32 = 10080;
-/// Default Websocket port to bind to if none given
-pub const DEFAULT_WS_PORT: u32 = 10081;
 /// Default ip address to bind
 pub const DEFAULT_BIND_ADDR: &str = "127.0.0.1";
 
@@ -35,11 +33,8 @@ pub const CONF_FILE_ENV_KEY: &str = "WSSS_CONF_FILE";
 pub const BIND_ADDRESS_ENV_KEY: &str = "WSSS_BIND_ADDRESS";
 /// Env variable name for specifying HTTP port
 pub const HTTP_PORT_ENV_KEY: &str = "WSSS_HTTP_PORT";
-/// Env variable name for specifying WS port
-pub const WS_PORT_ENV_KEY: &str = "WSSS_WS_PORT";
 
 const HTTP_PORT_KEY: &str = "http_port";
-const WS_PORT_KEY: &str = "ws_port";
 const BIND_ADDRESS_KEY: &str = "bind_address";
 
 /// This struct models partially specified configuration,
@@ -47,7 +42,6 @@ const BIND_ADDRESS_KEY: &str = "bind_address";
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct TomlWsssConfig {
   pub http_port: Option<u32>,
-  pub ws_port: Option<u32>,
   pub bind_address: Option<String>,
 }
 
@@ -62,7 +56,6 @@ impl TomlWsssConfig {
 
     Ok(WsssConfig {
       http_port: self.http_port.unwrap_or(DEFAULT_HTTP_PORT),
-      ws_port: self.ws_port.unwrap_or(DEFAULT_WS_PORT),
       bind_address: ip_addr,
     })
   }
@@ -72,7 +65,6 @@ impl TomlWsssConfig {
     let o = other.into();
     TomlWsssConfig {
       http_port: merge_options(self.http_port, o.http_port),
-      ws_port: merge_options(self.ws_port, o.ws_port),
       bind_address: merge_options(self.bind_address, o.bind_address),
     }
   }
@@ -81,7 +73,6 @@ impl TomlWsssConfig {
   /// defaults overridden by commandline values.
   pub fn parse_cmdline() -> TomlWsssConfig {
     let mut port: Option<u32> = None;
-    let mut ws_port: Option<u32> = None;
     let mut bind_address: Option<String> = None;
 
     {
@@ -89,8 +80,6 @@ impl TomlWsssConfig {
       ap.set_description("Provide access to serial ports over JSON Websockets");
       ap.refer(&mut port)
         .add_option(&["-p", "--http_port"], StoreOption, "Http Port");
-      ap.refer(&mut ws_port)
-        .add_option(&["-w", "--ws_port"], StoreOption, "Websocket Port");
       ap.refer(&mut bind_address).add_option(
         &["-a", "--bind_address"],
         StoreOption,
@@ -101,7 +90,6 @@ impl TomlWsssConfig {
 
     TomlWsssConfig {
       http_port: port,
-      ws_port: ws_port,
       bind_address: bind_address,
     }
   }
@@ -131,9 +119,6 @@ impl TomlWsssConfig {
       http_port: env::var(HTTP_PORT_ENV_KEY)
         .ok()
         .and_then(|v| v.parse::<u32>().ok()),
-      ws_port: env::var(WS_PORT_ENV_KEY)
-        .ok()
-        .and_then(|v| v.parse::<u32>().ok()),
       bind_address: env::var(BIND_ADDRESS_ENV_KEY).ok(),
     }
   }
@@ -144,7 +129,6 @@ impl From<WsssConfig> for TomlWsssConfig {
   fn from(wsss_cfg: WsssConfig) -> TomlWsssConfig {
     TomlWsssConfig {
       http_port: Some(wsss_cfg.http_port),
-      ws_port: Some(wsss_cfg.ws_port),
       bind_address: Some(wsss_cfg.bind_address.to_string()),
     }
   }
@@ -181,15 +165,6 @@ pub struct WsssConfig {
   ///
   /// cmdline switch -p or --http_port
   pub http_port: u32,
-
-  /// The ws port to listen on.
-  ///
-  /// defaults to http_port + 1
-  ///
-  /// env var WSSS_WS_PORT
-  ///
-  /// cmdline switch -w or --ws_port
-  pub ws_port: u32,
 
   /// Address to bind to.
   ///
@@ -257,7 +232,6 @@ impl Default for WsssConfig {
   fn default() -> WsssConfig {
     WsssConfig {
       http_port: DEFAULT_HTTP_PORT,
-      ws_port: DEFAULT_WS_PORT,
       bind_address: Ipv4Addr::from_str(DEFAULT_BIND_ADDR).unwrap(),
     }
   }
@@ -275,7 +249,6 @@ impl From<TomlWsssConfig> for WsssConfig {
 
     WsssConfig {
       http_port: toml_wsss_cfg.http_port.unwrap_or(DEFAULT_HTTP_PORT),
-      ws_port: toml_wsss_cfg.ws_port.unwrap_or(DEFAULT_WS_PORT),
       bind_address: ip_addr,
     }
   }
@@ -326,7 +299,6 @@ mod tests {
   fn toml_wsss_config_default() {
     let cfg = TomlWsssConfig::default();
     assert_eq!(cfg.http_port, None, "Http port should be None");
-    assert_eq!(cfg.ws_port, None, "WS port should be None");
     assert_eq!(cfg.bind_address, None, "bind address should be None");
   }
 
@@ -340,11 +312,6 @@ mod tests {
       DEFAULT_HTTP_PORT
     );
     assert_eq!(
-      cfg.ws_port, DEFAULT_WS_PORT,
-      "WS port should be '{}'",
-      DEFAULT_WS_PORT
-    );
-    assert_eq!(
       cfg.bind_address, def_bind_addr,
       "bind address should be '{}'",
       DEFAULT_BIND_ADDR
@@ -356,7 +323,6 @@ mod tests {
     let mut tmp_cfg_file = tempfile().expect("Creating temp file failed");
     let cfg = WsssConfig {
       http_port: 12345,
-      ws_port: 12346,
       bind_address: Ipv4Addr::from_str("10.1.100.10").expect("Create config obj failed"),
     };
     let cfg_str = toml::to_string(&cfg).expect("Serializing to toml failed");

@@ -16,3 +16,4 @@ pub mod cfg;
 pub mod errors;
 pub mod messages;
 pub mod serial_port_arbiter;
+pub mod websocket_client_actor;
