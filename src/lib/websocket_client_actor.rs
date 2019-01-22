@@ -1,6 +1,8 @@
 use actix::prelude::*;
 use actix_web::ws;
+use log::*;
 
+use crate::messages::*;
 use crate::serial_port_arbiter::SerialPortArbiter;
 
 use std::time::{Duration, Instant};
@@ -21,7 +23,7 @@ impl WebsocketClientActor {
       // check client heartbeats
       if Instant::now().duration_since(act.last_heartbeat) > CLIENT_TIMEOUT {
         // heartbeat timed out
-        println!("Websocket Client heartbeat failed, disconnecting!");
+        warn!("Websocket Client heartbeat failed, disconnecting!");
 
         // notify chat server
         // ctx.state().addr.do_send(server::Disconnect { id: act.id });
@@ -32,7 +34,7 @@ impl WebsocketClientActor {
         // don't try to send a ping
         return;
       }
-      println!("{:?} : PING!", act);
+      debug!("{:?} : PING!", act);
       ctx.ping("PING!");
     });
   }
@@ -56,19 +58,30 @@ impl Actor for WebsocketClientActor {
   /// Method is called on actor start.
   /// We register ws session with ChatServer
   fn started(&mut self, ctx: &mut Self::Context) {
-    println!("Starting {:?}", self);
+    debug!("Starting {:?}", self);
     self.start_heartbeat(ctx)
   }
 
   fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
-    println!("Stopping {:?}", self);
+    debug!("Stopping {:?}", self);
     Running::Stop
+  }
+}
+
+impl Handler<CommandResponse> for WebsocketClientActor {
+  type Result = ();
+
+  fn handle(&mut self, command_response: CommandResponse, ctx: &mut Self::Context) -> Self::Result {
+    match serde_json::to_string(&command_response.response) {
+      Ok(response) => ctx.text(response),
+      Err(err) => warn!("Error serializing response!"),
+    };
   }
 }
 
 impl StreamHandler<ws::Message, ws::ProtocolError> for WebsocketClientActor {
   fn handle(&mut self, msg: ws::Message, ctx: &mut Self::Context) {
-    println!("WEBSOCKET MESSAGE: {:?}", msg);
+    debug!("WEBSOCKET MESSAGE: {:?}", msg);
     match msg {
       ws::Message::Ping(msg) => {
         self.last_heartbeat = Instant::now();
@@ -78,10 +91,19 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WebsocketClientActor {
         self.last_heartbeat = Instant::now();
       }
       ws::Message::Text(text) => {
-        let message = text.trim();
-        println!("Got message >> {}", message)
+        debug!("Got message >> {}", text.trim());
+        match serde_json::from_str::<SerialRequest>(&text) {
+          Ok(serial_request) => ctx
+            .state()
+            .serial_port_arbiter_address
+            .do_send(CommandRequest {
+              address: ctx.address().recipient::<CommandResponse>(),
+              request: SerialRequest::List {},
+            }),
+          Err(err) => warn!("Error reading message from web socket!"),
+        }
       }
-      ws::Message::Binary(bin) => println!("Unexpected binary"),
+      ws::Message::Binary(bin) => warn!("Unexpected binary"),
       ws::Message::Close(_) => {
         ctx.stop();
       }
