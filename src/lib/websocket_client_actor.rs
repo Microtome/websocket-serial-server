@@ -100,7 +100,7 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WebsocketClientActor {
               address: ctx.address().recipient::<CommandResponse>(),
               request: SerialRequest::List {},
             }),
-          Err(err) => warn!("Error reading message from web socket!"),
+          Err(err) => warn!("Error reading message '{}' from web socket!", &text),
         }
       }
       ws::Message::Binary(bin) => warn!("Unexpected binary"),
