@@ -12,6 +12,21 @@ use actix::prelude::*;
 
 use std::fmt;
 
+pub struct DebugRecipient<'a, T>(pub &'a Recipient<T>)
+where
+  T: fmt::Debug + Message + std::marker::Send,
+  T::Result: std::marker::Send;
+
+impl<'a, T> fmt::Debug for DebugRecipient<'a, T>
+where
+  T: fmt::Debug + Message + std::marker::Send,
+  T::Result: std::marker::Send,
+{
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "Recipient {{ address_ptr: {:p} }}", &self.0)
+  }
+}
+
 #[derive(Clone, Message)]
 pub struct CommandRequest {
   pub address: Recipient<CommandResponse>,
@@ -22,8 +37,9 @@ impl fmt::Debug for CommandRequest {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(
       f,
-      "CommandResponse {{ address_ptr: {:p} request: {} }}",
-      &self.address, self.request
+      "CommandRequest {{ recipient: {:?} request: {} }}",
+      DebugRecipient(&self.address),
+      self.request
     )
   }
 }
@@ -38,15 +54,12 @@ impl fmt::Debug for CommandResponse {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(
       f,
-      "CommandResponse {{ address_ptr: {:p} request: {} }}",
-      &self.address, self.response
+      "CommandResponse {{ recipient: {:?} request: {} }}",
+      DebugRecipient(&self.address),
+      self.response
     )
   }
 }
-
-// impl Message for CommandResponse {
-//   type Result = ();
-// }
 
 /// Represents the valid json requests that can be made
 ///
