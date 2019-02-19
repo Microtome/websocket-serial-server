@@ -1,16 +1,19 @@
-//! The Serial Port arbiter handles responding to serial port listing commands, restarting Serial //! port actors, and other tasks. It also passes messages to/from serial ports.
+//! The Serial Port arbiter handles responding to serial port listing commands, restarting Serial //! port actors, and other tasks. It also passes some messages to serial ports.
 
 use crate::errors::*;
 use crate::messages::*;
+use crate::serial_port_actor::*;
 
 use actix::prelude::*;
 use log::*;
 use serialport;
 
-pub struct SerialPortArbiter {}
+use std::collections::HashMap;
 
-impl Actor for SerialPortArbiter {
-  type Context = Context<Self>;
+#[derive(Debug)]
+pub struct SerialPortArbiter {
+  // TODO WeakAddr?
+  open_ports: HashMap<String, Addr<SerialPortActor>>,
 }
 
 impl SerialPortArbiter {
@@ -18,6 +21,33 @@ impl SerialPortArbiter {
   pub fn list_ports(&self) -> Result<Vec<serialport::SerialPortInfo>> {
     serialport::available_ports().map_err(|e| ErrorKind::Serialport(e).into())
   }
+
+  /// Launch port actor
+  fn launch_port_actor(&mut self, ctx: &mut Context<Self>, serial_port_name: &str) -> () {
+    // TODO IF already in map, check if not closed, etc.
+    if self.open_ports.get(serial_port_name).is_none() {
+      match SerialPortActor::open_port_and_start(ctx.address(), serial_port_name) {
+        Ok(address) => {
+          self
+            .open_ports
+            .insert(serial_port_name.to_string(), address);
+        }
+        Err(error) => {}
+      }
+    };
+  }
+}
+
+impl Default for SerialPortArbiter {
+  fn default() -> Self {
+    SerialPortArbiter {
+      open_ports: HashMap::new(),
+    }
+  }
+}
+
+impl Actor for SerialPortArbiter {
+  type Context = Context<Self>;
 }
 
 impl Handler<CommandRequest> for SerialPortArbiter {
@@ -39,6 +69,7 @@ impl Handler<CommandRequest> for SerialPortArbiter {
         },
       },
 
+      // SerialRequest::Open {} => match self.launch_port_actor() {},
       _ => SerialResponse::Ok {
         msg: "Got Message!".to_string(),
       },

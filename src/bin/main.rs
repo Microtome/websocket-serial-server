@@ -12,6 +12,9 @@
 //!
 //! You can open/close ports, read and write data, and see the responses. All messages are in JSON
 //! format.
+//!
+//! TODO: Add status message websocket channel to accept broadcasts of any errors / transmission
+//! problems.
 
 extern crate actix;
 extern crate actix_web;
@@ -67,7 +70,7 @@ pub fn main() {
   let system = actix::System::new("wsss");
 
   // Start chat server actor in separate thread
-  let serial_port_arbiter_address = Arbiter::start(|_| SerialPortArbiter {});
+  let serial_port_arbiter_address = Arbiter::start(|_| SerialPortArbiter::default());
 
   // Build HTTP Server.
   server::new(move || {
