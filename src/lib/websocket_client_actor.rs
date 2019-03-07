@@ -97,8 +97,8 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WebsocketClientActor {
             .state()
             .serial_port_arbiter_address
             .do_send(CommandRequest {
-              address: ctx.address().recipient::<CommandResponse>(),
-              request: SerialRequest::List {},
+              address: ctx.address(),
+              request: serial_request,
             }),
           Err(err) => warn!("Error reading message '{}' from web socket!", &text),
         }

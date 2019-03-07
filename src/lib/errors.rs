@@ -1,4 +1,5 @@
-use crate::messages::{SerialRequest, SerialResponse};
+use crate::messages::{CommandResponse, SerialRequest, SerialResponse};
+use actix::prelude::SendError;
 
 error_chain! {
 
@@ -33,7 +34,7 @@ error_chain! {
     /// Unknown server request
     UnknownRequest{
       description("Unknown request")
-      display("Unknown request,")
+      display("Unknown request")
     }
     /// Open port not found
     OpenPortNotFound(port:String){
@@ -75,13 +76,32 @@ error_chain! {
       description("Error sending message to subscriber")
       display("Send to subscriber '{}' failed", sub_id)
     }
+    /// SendError error
+    WrappedCommandResponseSendError(send_error: ::actix::prelude::SendError<CommandResponse>){
+      description("Send Error")
+      display("Send Error: {:?}", send_error)
+    }
+        /// SendError error
+    WrappedSerialRequestSendError(send_error: ::actix::prelude::SendError<SerialRequest>){
+      description("Send Error")
+      display("Send Error: {:?}", send_error)
+    }
   }
 }
 
 /// Convert Error to serial response error enum type
-pub fn to_serial_response_error(err: Error) -> SerialResponse {
+pub fn to_serial_response_error(err: Error, port: Option<String>) -> SerialResponse {
   SerialResponse::Error {
+    port: port,
     description: err.description().to_string(),
     display: format!("{}", err),
   }
+}
+
+pub fn to_send_command_response_error(send_error: SendError<CommandResponse>) -> Error {
+  ErrorKind::WrappedCommandResponseSendError(send_error).into()
+}
+
+pub fn to_send_serial_request_error(send_error: SendError<SerialRequest>) -> Error {
+  ErrorKind::WrappedSerialRequestSendError(send_error).into()
 }

@@ -1,16 +1,17 @@
 //! This module contains all of the enums used
 //! to represent messages that can be send by clients
 //! ( SerialRequest::* ) and their responses by
-//! by the server ( SerialReponse::* )
+//! by the server ( SerialResponse::* )
 
 // TODO: use when new version drops
 //use serialport::{SerialPortInfo,UsbPortInfo,SerialPortType};
 
-use serde_json;
+use std::fmt;
 
 use actix::prelude::*;
+use serde_json;
 
-use std::fmt;
+use crate::websocket_client_actor::WebsocketClientActor;
 
 pub struct DebugRecipient<'a, T>(pub &'a Recipient<T>)
 where
@@ -27,21 +28,11 @@ where
   }
 }
 
-#[derive(Clone, Message)]
+// TODO: This assymetry with Addr vs Recipient in debug needs to be fixed in actix.
+#[derive(Clone, Message, Debug)]
 pub struct CommandRequest {
-  pub address: Recipient<CommandResponse>,
+  pub address: Addr<WebsocketClientActor>,
   pub request: SerialRequest,
-}
-
-impl fmt::Debug for CommandRequest {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(
-      f,
-      "CommandRequest {{ recipient: {:?} request: {} }}",
-      DebugRecipient(&self.address),
-      self.request
-    )
-  }
 }
 
 #[derive(Clone, Message)]
@@ -70,7 +61,7 @@ impl fmt::Debug for CommandResponse {
 ///
 /// Requests that fail or can not be met will result
 /// in SerialResponse::Error responses
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Message)]
 pub enum SerialRequest {
   /// Open a port for reading
   ///
@@ -156,7 +147,7 @@ impl fmt::Display for SerialRequest {
 }
 
 /// Represents the valid json responses that can be made
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Message)]
 pub enum SerialResponse {
   /// Error response
   ///
@@ -169,6 +160,7 @@ pub enum SerialResponse {
   ///
   /// ```
   Error {
+    port: Option<String>,
     description: String,
     display: String,
   },
@@ -231,7 +223,11 @@ pub enum SerialResponse {
   /// ```
   ///
   /// TODO: Return hash of data written?
-  Wrote { port: String },
+  Wrote {
+    port: String,
+    data: String,
+    base64: Option<bool>,
+  },
   /// Port successfully writelocked
   ///
   /// Sent in response to SerialReques::WriteLock

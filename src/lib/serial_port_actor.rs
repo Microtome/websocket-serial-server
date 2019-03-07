@@ -1,4 +1,4 @@
-//! The Serial Port actor handles subscriptions and reading/writing to/from a single serial port.
+//! The Serial Port actor handles reading/writing to/from a single serial port.
 
 use crate::errors::*;
 use crate::messages::*;
@@ -8,15 +8,16 @@ use actix::prelude::*;
 use log::*;
 use serialport;
 
-use std::collections::HashSet;
 use std::fmt;
 use std::time::Duration;
 
+// Buffer for the port
 const SERIAL_PORT_READ_BUFFER_SIZE: usize = 2 ^ 16;
 
 // Scan serial port 30x a second.
 static SERIAL_PORT_SCAN_INTERVAL: Duration = Duration::from_millis(33);
 
+// TODO: make settings configurable
 static DEFAULT_SERIALPORT_SETTINGS: serialport::SerialPortSettings =
   serialport::SerialPortSettings {
     baud_rate: 115200,
@@ -27,6 +28,7 @@ static DEFAULT_SERIALPORT_SETTINGS: serialport::SerialPortSettings =
     timeout: Duration::from_millis(1),
   };
 
+/// Decode data payload.
 fn decode_data(data: &str, is_base64: bool) -> Result<Vec<u8>> {
   if is_base64 {
     base64::decode(&data).map_err(|e| ErrorKind::Base64(e).into())
@@ -38,8 +40,6 @@ fn decode_data(data: &str, is_base64: bool) -> Result<Vec<u8>> {
 pub struct SerialPortActor {
   serial_port_name: String,
   serial_port: Box<serialport::SerialPort>,
-  subscribers: HashSet<Recipient<CommandResponse>>,
-  writelocked: Option<Recipient<CommandResponse>>,
   arbiter: Addr<SerialPortArbiter>,
   buffer: [u8; SERIAL_PORT_READ_BUFFER_SIZE],
 }
@@ -56,27 +56,16 @@ impl fmt::Debug for SerialPortActor {
 }
 
 impl SerialPortActor {
-  /// Cleanup a dead recipient, removing it from subscriptions and removing its writelock if it
-  /// had one.
-  fn cleanup_dead_recipient(&mut self, recipient: Recipient<CommandResponse>) {
-    self
-      .subscribers
-      .retain(|subscriber| subscriber != &recipient);
-    if Some(recipient) == self.writelocked {
-      self.writelocked = None
-    }
-  }
-
-  /// Try and send a response, if it fails, check the error type and perform cleanup.
-  fn do_send(&mut self, recipient: Recipient<CommandResponse>, response: CommandResponse) {
-    if let Err(error) = recipient.try_send(response) {
-      debug!(
-        "Error '{}' occured when trying to send message to {:?}.",
-        error,
-        DebugRecipient(&recipient)
-      );
-    }
-  }
+  // /// Try and send a response, if it fails, check the error type and perform cleanup.
+  // fn do_send(&mut self, recipient: Recipient<CommandResponse>, response: CommandResponse) {
+  //   if let Err(error) = recipient.try_send(response) {
+  //     debug!(
+  //       "Error '{}' occured when trying to send message to {:?}.",
+  //       error,
+  //       DebugRecipient(&recipient)
+  //     );
+  //   }
+  // }
 
   /// Read data from the serial port]
   ///
@@ -105,7 +94,7 @@ impl SerialPortActor {
     })
   }
 
-  /// Static method to fire up a SerialPortActor, bound to a serial port Actor.
+  /// Static method to fire up a SerialPortActor, bound to a serial port.
   ///
   /// The actor tries to open the port and if successful, enters the running start.
   pub fn open_port_and_start(
@@ -119,8 +108,6 @@ impl SerialPortActor {
           buffer: [0; SERIAL_PORT_READ_BUFFER_SIZE],
           serial_port_name: serial_port_name.to_string(),
           serial_port: serial_port,
-          subscribers: HashSet::new(),
-          writelocked: None,
         }
         .start()
       })
@@ -136,42 +123,51 @@ impl SerialPortActor {
           let data_read = &serial_port_actor.buffer[0..bytes_read];
           match String::from_utf8(data_read.to_vec()) {
             // We need to send as binary
-            Err(error) => Some(SerialResponse::Read {
+            Err(error) => Ok(Some(SerialResponse::Read {
               port: serial_port_actor.serial_port_name.clone(),
               data: base64::encode(data_read),
               base64: Some(true),
-            }),
-            Ok(utf8_string) => Some(SerialResponse::Read {
+            })),
+            // We can send as ascii
+            Ok(utf8_string) => Ok(Some(SerialResponse::Read {
               port: serial_port_actor.serial_port_name.clone(),
               data: utf8_string,
               base64: Some(false),
-            }),
+            })),
           }
         } else {
-          None
+          Ok(None)
         }
       }
-      Err(error) => Some(to_serial_response_error(error)),
+      Err(error) => Err(error),
     }
-    .map(|serial_response| {
-      let command_response = CommandResponse {
-        address: ctx.address().recipient(),
-        response: serial_response,
-      };
-      // TODO Refactor to broadcast message method
-      // let bad_recipients: HashSet<Recipient<CommandResponse>> =
-      serial_port_actor.subscribers.retain(|recipient| {
-        // Don't keep any subscribers who fail send.
-        recipient
-          .try_send(command_response.clone())
-          .map(|_| true)
-          .unwrap_or(false)
-      });
-    });
+    .map(|response| match response {
+      Some(serial_response) => serial_port_actor.try_arbiter_send_log_failure(serial_response),
+      _ => {}
+    })
+    .map_err(|error| {
+      serial_port_actor.try_arbiter_send_log_failure(to_serial_response_error(
+        error,
+        Some(serial_port_actor.serial_port_name.clone()),
+      ))
+    })
+    .expect("Error reading serial port")
   }
 
+  /// Start scanning the serial port.
   fn start_scan(&self, ctx: &mut Context<Self>) {
     ctx.run_interval(SERIAL_PORT_SCAN_INTERVAL, SerialPortActor::read_serial_port);
+  }
+
+  /// Try to send a message to the parent serial port arbiter actor. If the send fails
+  /// we log it.
+  fn try_arbiter_send_log_failure(&self, serial_response: SerialResponse) {
+    if let Err(error) = self.arbiter.try_send(serial_response) {
+      debug!(
+        "{:?} Encountered error {:?} trying to send to {:?}",
+        self, error, self.arbiter
+      )
+    };
   }
 }
 
@@ -185,24 +181,40 @@ impl Actor for SerialPortActor {
     self.start_scan(ctx)
   }
 
+  /// Method is called on actor stopping.
+  /// When actor is dropped it automatically shuts down.
   fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
     debug!("Stopping {:?}", self);
     Running::Stop
   }
+
+  /// Method is called on actor stopping.
+  /// When actor is dropped it automatically shuts down.
+  fn stopped(&mut self, ctx: &mut Self::Context) -> () {
+    debug!("Stopped {:?}", self);
+  }
 }
 
-impl Handler<CommandRequest> for SerialPortActor {
+impl Handler<SerialRequest> for SerialPortActor {
   type Result = ();
 
-  fn handle(&mut self, command_request: CommandRequest, ctx: &mut Context<Self>) -> Self::Result {
-    let sender = command_request.address;
-    match command_request.request {
-      SerialRequest::Open { port } => (),
-      SerialRequest::Close { port } => (),
-      SerialRequest::Write { port, data, base64 } => (),
-      SerialRequest::WriteLock { port } => (),
-      SerialRequest::ReleaseWriteLock { port } => (),
-      SerialRequest::List {} => (),
-    }
+  /// Handle serial request messages
+  ///
+  /// The Serial Port Actor only handles SerialRequest::Write messages, all others will be
+  /// logged and ignored.
+  fn handle(&mut self, serial_request: SerialRequest, ctx: &mut Context<Self>) -> Self::Result {
+    match serial_request {
+      SerialRequest::Write { port, data, base64 } => {
+        if let Err(write_error) = self.write_port(&data, base64.unwrap_or(false)) {
+          self.try_arbiter_send_log_failure(to_serial_response_error(
+            write_error,
+            Some(self.serial_port_name.clone()),
+          ))
+        };
+      }
+      other @ _ => {
+        debug!("{:?} should not have gotten message: {:?}", self, other);
+      }
+    };
   }
 }
