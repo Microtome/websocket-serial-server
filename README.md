@@ -107,6 +107,10 @@ Please read the env_logger docs for more information, but here is a quick exampl
 
 ```RUST_LOG=debug ./target/debug/wsss```
 
+Add Backtraces:
+
+```RUST_BACKTRACE=1 RUST_LOG=debug ./target/debug/wsss``` 
+
 ## TODO
 
 * [ ] Break this out into bugs/features :)
@@ -129,3 +133,6 @@ totally go south
 with sub_id to handler method
 * [ ] Reduce the usage of String in favor of &str?
 * [ ] "Wrote" response message, should we return a hash of the data that was written so integrity can be verified?
+
+
+
