@@ -21,13 +21,11 @@ extern crate actix_web;
 extern crate argparse;
 extern crate base64;
 extern crate env_logger;
-extern crate hyper;
 #[macro_use]
 extern crate log;
 extern crate rand;
 extern crate serde_json;
 extern crate serialport;
-extern crate websocket;
 
 extern crate lib;
 

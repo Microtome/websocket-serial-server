@@ -24,8 +24,6 @@ error_chain! {
     Base64(::base64::DecodeError);
     // Wrapped sync send request error
     SendRequest(::std::sync::mpsc::SendError<(String,SerialRequest)>);
-    // wrapped send websocket error.
-    SendWsMessage(::websocket::result::WebSocketError);
     // Wrapped ipv4 parse error
     IpAddr(::std::net::AddrParseError);
   }
