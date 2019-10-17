@@ -6,7 +6,7 @@
 use std::thread;
 use std::time::{Duration, Instant};
 
-use log::LogLevel::Warn;
+use log::Level::Warn;
 
 /// Dynamic Sleep
 /// The dynamic sleep struct

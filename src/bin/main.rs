@@ -23,16 +23,16 @@ use std::net::TcpStream;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
-use hyper::net::Fresh;
-use hyper::server::request::Request;
-use hyper::server::response::Response;
+use hyper::http::Request;
+use hyper::http::Response;
 use hyper::Server as HttpServer;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng};
 use websocket::client::Writer;
 use websocket::message::Type;
 use websocket::result::WebSocketError;
 use websocket::server::upgrade::WsUpgrade;
-use websocket::{Message, Server};
+use websocket::server::WsServer;
+use websocket::Message;
 
 use lib::cfg::*;
 use lib::dynamic_sleep::DynamicSleep;
@@ -48,7 +48,7 @@ pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 /// Launches wsss
 pub fn main() {
   // Init logger
-  env_logger::init().expect("Initialization of logging system failed!");
+  env_logger::try_init().expect("Initialization of logging system failed!");
 
   // Grab config
   let cfg = WsssConfig::load();
@@ -60,13 +60,12 @@ pub fn main() {
   );
 
   // The HTTP server handler
-  let http_handler = move |_: Request, response: Response<Fresh>| {
-    let mut response = response.start().expect(&"Could not start response");
+  let http_handler = move |_: Request<()>, response: Response<Vec<u8>>| {
+    let mut response = Response::builder();
     // Send a client webpage
     response
-      .write_all(websocket_html.as_bytes())
+      .body(websocket_html.as_bytes())
       .expect(&"Could not get template as bytes");
-    response.end().expect(&"Send response failed");
   };
 
   info!("Using ports {} {}", cfg.http_port, cfg.ws_port);
@@ -86,7 +85,7 @@ pub fn main() {
   });
 
   // Start listening for WebSocket connections
-  let ws_server = Server::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port))
+  let ws_server = WsServer::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port))
     .expect(&format!("Failed bind on websocket port {}", cfg.ws_port));
 
   // Continuously iterate over connections,
