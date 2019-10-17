@@ -30,7 +30,8 @@ extern crate serialport;
 extern crate lib;
 
 use actix::prelude::*;
-use actix_web::{http, server, ws, App, Error, HttpRequest, HttpResponse};
+use actix_web::{http, HttpServer, App, Error, HttpRequest, HttpResponse};
+use actix_web_actors::ws;
 
 use lib::cfg::*;
 use lib::serial_port_arbiter::*;
@@ -44,20 +45,20 @@ pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 // HTML Template
 const WEBSOCKET_HTML: &str = include_str!("./websockets.html");
 
-fn index_handler(request: &HttpRequest<String>) -> HttpResponse {
+fn index_handler(request: &HttpRequest) -> HttpResponse {
   HttpResponse::Ok()
     .content_type("text/html")
     .body(request.state())
 }
 
-fn websocket_handler(req: &HttpRequest<WebsocketClientState>) -> Result<HttpResponse, Error> {
-  ws::start(req, WebsocketClientActor::default())
+fn websocket_handler(req: &HttpRequest<>) -> Result<HttpResponse, Error> {
+  ws::start(WebsocketClientActor::default(), req, WebsocketClientActor::default())
 }
 
 /// Launches wsss
 pub fn main() {
   // Init logger
-  env_logger::init().expect("Initialization of logging system failed!");
+  env_logger::try_init().expect("Initialization of logging system failed!");
 
   // Grab config
   let cfg = WsssConfig::load();
@@ -68,10 +69,11 @@ pub fn main() {
   let system = actix::System::new("wsss");
 
   // Start chat server actor in separate thread
-  let serial_port_arbiter_address = Arbiter::start(|_| SerialPortArbiter::default());
+  let arbiter = Arbiter::new();
+  let serial_port_arbiter_address = SerialPortArbiter::start_in_arbiter(&arbiter, |_ctx: &mut Context<SerialPortArbiter>| SerialPortArbiter::default());
 
   // Build HTTP Server.
-  server::new(move || {
+  HttpServer::new(move || {
     vec![
       // Index html
       App::with_state(WebsocketClientState {

@@ -39,7 +39,7 @@ fn decode_data(data: &str, is_base64: bool) -> Result<Vec<u8>> {
 
 pub struct SerialPortActor {
   serial_port_name: String,
-  serial_port: Box<serialport::SerialPort>,
+  serial_port: Box<dyn serialport::SerialPort>,
   arbiter: Addr<SerialPortArbiter>,
   buffer: [u8; SERIAL_PORT_READ_BUFFER_SIZE],
 }

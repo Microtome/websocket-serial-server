@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use actix_web::ws;
+use actix_web_actors::ws;
 use log::*;
 
 use crate::messages::*;
@@ -15,10 +15,11 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 #[derive(Debug)]
 pub struct WebsocketClientActor {
   last_heartbeat: Instant,
+  serial_port_arbiter_address: Option<Addr<SerialPortArbiter>>,
 }
 
 impl WebsocketClientActor {
-  fn start_heartbeat(&self, ctx: &mut ws::WebsocketContext<Self, WebsocketClientState>) {
+  fn start_heartbeat(&self, ctx: &mut ws::WebsocketContext<Self>) {
     ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
       // check client heartbeats
       if Instant::now().duration_since(act.last_heartbeat) > CLIENT_TIMEOUT {
@@ -44,16 +45,13 @@ impl Default for WebsocketClientActor {
   fn default() -> Self {
     WebsocketClientActor {
       last_heartbeat: Instant::now(),
+      serial_port_arbiter_address: None,
     }
   }
 }
 
-pub struct WebsocketClientState {
-  pub serial_port_arbiter_address: Addr<SerialPortArbiter>,
-}
-
 impl Actor for WebsocketClientActor {
-  type Context = ws::WebsocketContext<Self, WebsocketClientState>;
+  type Context = ws::WebsocketContext<Self>;
 
   /// Method is called on actor start.
   /// We register ws session with ChatServer
@@ -93,13 +91,13 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WebsocketClientActor {
       ws::Message::Text(text) => {
         debug!("Got message >> {}", text.trim());
         match serde_json::from_str::<SerialRequest>(&text) {
-          Ok(serial_request) => ctx
-            .state()
-            .serial_port_arbiter_address
-            .do_send(CommandRequest {
+          Ok(serial_request) => match &self.serial_port_arbiter_address {
+            Some(address) => address.do_send(CommandRequest {
               address: ctx.address(),
               request: serial_request,
             }),
+            None => warn!("Got message, but serial port arbiter to talk to"),
+          },
           Err(err) => warn!("Error reading message '{}' from web socket!", &text),
         }
       }
@@ -107,6 +105,7 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WebsocketClientActor {
       ws::Message::Close(_) => {
         ctx.stop();
       }
+      msg @ _ => info!("Websocket message '{:?}' unsupported.", msg),
     }
   }
 }
