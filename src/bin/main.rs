@@ -1,33 +1,33 @@
 //!
 //! # WebSocket Serial Server
 //!
-//! WebSocket Serial Server is a program that allows
-//! that allows browsers to access serial ports
-//! on localhost
+//! WebSocket Serial Server is a program that allows that allows browsers to access serial ports on
+//! localhost
 //!
 //! ## Running
 //!
 //! ```./wsss```
 //!
-//! For information on configuration please check out
-//! the [cfg](../lib/cfg/index.html) package in serialsupport
+//! For information on configuration please check out the [cfg](../lib/cfg/index.html) package in
+//! serialsupport
 //!
-//! You can open/close ports, read and write data, and see the
-//! responses. All messages are in JSON format
+//! You can open/close ports, read and write data, and see the responses. All messages are in JSON
+//! format
 
 #[macro_use]
 extern crate log;
 
-use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
-use hyper::http::Request;
-use hyper::http::Response;
+use hyper::http::{Request, Response};
+use hyper::rt::Future;
+use hyper::service::service_fn_ok;
+use hyper::Body;
 use hyper::Server as HttpServer;
-use rand::{thread_rng};
-use websocket::client::Writer;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use websocket::message::Type;
 use websocket::result::WebSocketError;
 use websocket::server::upgrade::WsUpgrade;
@@ -40,8 +40,7 @@ use lib::errors as e;
 use lib::manager::Manager;
 use lib::messages::*;
 
-/// Max number of failures we allow when trying to send
-/// data to client before exiting
+/// Max number of failures we allow when trying to send data to client before exiting
 /// TODO: Make configurable
 pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 
@@ -60,12 +59,11 @@ pub fn main() {
   );
 
   // The HTTP server handler
-  let http_handler = move |_: Request<()>, response: Response<Vec<u8>>| {
-    let mut response = Response::builder();
-    // Send a client webpage
-    response
-      .body(websocket_html.as_bytes())
-      .expect(&"Could not get template as bytes");
+  let http_handler = || {
+    service_fn_ok(|_: Request<Body>| {
+      // Send a client webpage
+      Response::new(Body::from(websocket_html))
+    })
   };
 
   info!("Using ports {} {}", cfg.http_port, cfg.ws_port);
@@ -76,24 +74,26 @@ pub fn main() {
   Manager::spawn(sreq_rx, sub_rx);
 
   // Start listening for http connections
-  let http_server = HttpServer::http(format!("{}:{}", cfg.bind_address, cfg.http_port)).expect(
-    &format!("Failed to create http server on port {}", cfg.http_port),
-  );
+  let addr = (cfg.bind_address, cfg.http_port).into();
 
-  thread::spawn(move || {
-    http_server.handle(http_handler).expect(&"Failed to listen");
-  });
+  let http_server = HttpServer::bind(&addr)
+    .serve(http_handler)
+    .map_err(|e| eprintln!("server error: {}", e));
+
+  hyper::rt::run(http_server);
 
   // Start listening for WebSocket connections
   let ws_server = WsServer::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port))
     .expect(&format!("Failed bind on websocket port {}", cfg.ws_port));
 
-  // Continuously iterate over connections,
-  // spawning handlers
+  // Continuously iterate over connections, spawning handlers
   for connection in ws_server.filter_map(Result::ok) {
     // Set up subscription id
     // let ts = SystemTime::now() - UNIX_EPOCH
-    let prefix: String = thread_rng().gen_ascii_chars().take(8).collect();
+    let prefix: String = thread_rng()
+      .sample_iter(&Alphanumeric)
+      .take(10)
+      .collect::<String>();
     let sub_id = format!("thread-{}-{}", prefix, rand::random::<u16>());
     debug!("{}: spawned.", sub_id);
 
@@ -257,10 +257,8 @@ fn ws_handler(
   info!("{}: Shutting down!", sub_id);
 }
 
-/// Send an error to the given subscriber
-/// Log a warning if the message can't be sent
-/// This is usually ok as it means the client
-/// has simply disconnected
+/// Send an error to the given subscriber Log a warning if the message can't be sent This is usually
+/// ok as it means the client has simply disconnected
 fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
   let error = e::to_serial_response_error(error);
   serde_json::to_string(&error)
