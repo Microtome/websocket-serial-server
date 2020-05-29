@@ -18,9 +18,9 @@ use toml;
 use crate::errors::*;
 
 /// Default HTTP port to bind to if none given
-pub const DEFAULT_HTTP_PORT: u32 = 10080;
+pub const DEFAULT_HTTP_PORT: u16 = 10080;
 /// Default Websocket port to bind to if none given
-pub const DEFAULT_WS_PORT: u32 = 10081;
+pub const DEFAULT_WS_PORT: u16 = 10081;
 /// Default ip address to bind
 pub const DEFAULT_BIND_ADDR: &str = "127.0.0.1";
 
@@ -46,8 +46,8 @@ const BIND_ADDRESS_KEY: &str = "bind_address";
 /// leaving unset values as None
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct TomlWsssConfig {
-  pub http_port: Option<u32>,
-  pub ws_port: Option<u32>,
+  pub http_port: Option<u16>,
+  pub ws_port: Option<u16>,
   pub bind_address: Option<String>,
 }
 
@@ -80,8 +80,8 @@ impl TomlWsssConfig {
   /// Parse the command line returning a config with
   /// defaults overridden by commandline values.
   pub fn parse_cmdline() -> TomlWsssConfig {
-    let mut port: Option<u32> = None;
-    let mut ws_port: Option<u32> = None;
+    let mut port: Option<u16> = None;
+    let mut ws_port: Option<u16> = None;
     let mut bind_address: Option<String> = None;
 
     {
@@ -130,10 +130,10 @@ impl TomlWsssConfig {
     TomlWsssConfig {
       http_port: env::var(HTTP_PORT_ENV_KEY)
         .ok()
-        .and_then(|v| v.parse::<u32>().ok()),
+        .and_then(|v| v.parse::<u16>().ok()),
       ws_port: env::var(WS_PORT_ENV_KEY)
         .ok()
-        .and_then(|v| v.parse::<u32>().ok()),
+        .and_then(|v| v.parse::<u16>().ok()),
       bind_address: env::var(BIND_ADDRESS_ENV_KEY).ok(),
     }
   }
@@ -180,7 +180,7 @@ pub struct WsssConfig {
   /// env var WSSS_HTTP_PORT
   ///
   /// cmdline switch -p or --http_port
-  pub http_port: u32,
+  pub http_port: u16,
 
   /// The ws port to listen on.
   ///
@@ -189,7 +189,7 @@ pub struct WsssConfig {
   /// env var WSSS_WS_PORT
   ///
   /// cmdline switch -w or --ws_port
-  pub ws_port: u32,
+  pub ws_port: u16,
 
   /// Address to bind to.
   ///
