@@ -47,8 +47,8 @@ impl Manager {
       writelock_manager: WriteLockManager::new(),
       port_manager: PortManager::new(),
       sub_manager: SubscriptionManager::new(),
-      receiver: receiver,
-      subsc_receiver: subsc_receiver,
+      receiver,
+      subsc_receiver,
     }
   }
 

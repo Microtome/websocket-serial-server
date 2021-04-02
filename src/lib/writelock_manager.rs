@@ -218,5 +218,4 @@ mod tests {
     check_not_locked_by_anyone(&wl_manager, &port, vec![&sub_id1, &sub_id2, &sub_id3]);
     // TODO: Finish testing all other methods
   }
-
 }

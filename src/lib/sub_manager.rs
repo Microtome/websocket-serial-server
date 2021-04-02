@@ -285,5 +285,4 @@ mod tests {
     should_not_get_a_msg(&sub1_channel.1, "Subscriber 1");
     should_not_get_a_msg(&sub2_channel.1, "Subscriber 2");
   }
-
 }

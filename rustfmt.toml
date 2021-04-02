@@ -1,7 +1,7 @@
+edition = "2018"
+merge_derives = true
+reorder_imports = true
+reorder_modules = true
 tab_spaces = 2
-fn_args_layout = "Block"
-array_layout = "Block"
-control_style = "Rfc"
-where_style = "Rfc"
-generics_indent = "Block"
-fn_call_style = "Block"
+use_field_init_shorthand = true
+use_try_shorthand = true

@@ -101,8 +101,8 @@ impl TomlWsssConfig {
 
     TomlWsssConfig {
       http_port: port,
-      ws_port: ws_port,
-      bind_address: bind_address,
+      ws_port,
+      bind_address,
     }
   }
 
@@ -373,5 +373,4 @@ mod tests {
       cfg_str, contents
     );
   }
-
 }

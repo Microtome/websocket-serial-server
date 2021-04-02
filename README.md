@@ -49,9 +49,7 @@ Once Websocket-rs moves to tokio, this limitation can be removed
 
 #### Linux
 
-1. `sudo apt-get install libudev-dev`
-1. `sudo apt-get install libssl-dev`
-1. `sudo apt-get install pkg-config`
+1. `sudo apt-get install -y libudev-dev libssl-dev pkg-config`
 
 #### Windows
 
