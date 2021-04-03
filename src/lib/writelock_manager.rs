@@ -95,7 +95,7 @@ impl WriteLockManager {
   }
 
   /// Try and lock the port
-  pub fn lock_port(&mut self, port_name: &String, sub_id: &String) -> Result<()> {
+  pub fn try_lock_port(&mut self, port_name: &String, sub_id: &String) -> Result<()> {
     match self.is_port_locked_by_someone_else(port_name, sub_id) {
       false => {
         self
@@ -172,7 +172,7 @@ mod tests {
     assert_eq!(
       true,
       wl_manager
-        .lock_port(&port, &sub_id1)
+        .try_lock_port(&port, &sub_id1)
         .map(|_| true)
         .unwrap_or(false),
       "Sub_id '{}' locking port '{}' should succeed",
@@ -185,7 +185,7 @@ mod tests {
     assert_eq!(
       true,
       wl_manager
-        .lock_port(&port, &sub_id2)
+        .try_lock_port(&port, &sub_id2)
         .map(|_| false)
         .unwrap_or(true),
       "Sub_id '{}' locking port '{}' should fail",

@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::error::Error;
 use std::iter::FromIterator;
 use std::time::Duration;
 
@@ -12,7 +11,7 @@ struct OpenPort {
   /// The opened serial port
   /// SerialPort is not Sized, so it makes hashmap mad
   /// and so we deal with these shennanigans
-  port: Box<sp::SerialPort>,
+  port: Box<dyn sp::SerialPort>,
 }
 
 impl OpenPort {

@@ -194,7 +194,7 @@ impl Manager {
     self.check_sub_id(&sub_id)?;
     self
       .writelock_manager
-      .lock_port(&port_name, &sub_id)
+      .try_lock_port(&port_name, &sub_id)
       .map(|_| self.send_message(&sub_id, SerialResponse::WriteLocked { port: port_name }))
   }
 
