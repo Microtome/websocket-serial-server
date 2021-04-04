@@ -125,8 +125,7 @@ pub enum SerialResponse {
   ///
   /// ```
   Error {
-    description: String,
-    display: String,
+    error: String
   },
   /// Data that was read from port
   ///

@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::time::Duration;
 
+use anyhow::anyhow;
 use serialport as sp;
 
 use crate::errors::*;
@@ -21,7 +22,7 @@ impl OpenPort {
       .port
       .write_all(data)
       .and_then(|_| self.port.flush())
-      .map_err(|err| ErrorKind::Io(err).into())
+      .map_err(|error| WebsocketSerialServerError::Other(anyhow!(error)))
   }
 
   /// Read data from the serial port
@@ -29,7 +30,7 @@ impl OpenPort {
     self
       .port
       .read(buff)
-      .map_err(|err| ErrorKind::Io(err).into())
+      .map_err(|error| WebsocketSerialServerError::Other(anyhow!(error)))
   }
 }
 
@@ -54,7 +55,7 @@ impl PortManager {
 
   /// List all serial ports
   pub fn list_ports(&self) -> Result<Vec<sp::SerialPortInfo>> {
-    sp::available_ports().map_err(|e| ErrorKind::Serialport(e).into())
+    Ok(sp::available_ports().map_err(|error| WebsocketSerialServerError::Other(anyhow!(error)))?)
   }
 
   /// Open a port
@@ -75,7 +76,7 @@ impl PortManager {
           self.open_ports.insert(port_name.to_string(), open_port);
           Ok(())
         }
-        Err(e) => Err(ErrorKind::Serialport(e).into()),
+        Err(error) => Err(WebsocketSerialServerError::Other(anyhow!(error))),
       }
     }
   }
@@ -89,7 +90,9 @@ impl PortManager {
   /// Write data to the port
   pub fn write_port(&mut self, port_name: &str, data: &[u8]) -> Result<()> {
     match self.open_ports.get_mut(port_name) {
-      None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
+      None => Err(WebsocketSerialServerError::OpenPortNotFound {
+        port: port_name.to_owned(),
+      }),
       Some(p) => p.write_port(data),
     }
   }
@@ -99,7 +102,9 @@ impl PortManager {
   /// bytes read
   pub fn read_port(&mut self, port_name: &str, buff: &mut [u8]) -> Result<usize> {
     match self.open_ports.get_mut(port_name) {
-      None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
+      None => Err(WebsocketSerialServerError::OpenPortNotFound {
+        port: port_name.to_owned(),
+      }),
       Some(p) => p.read_port(buff),
     }
   }
@@ -117,20 +122,24 @@ impl PortManager {
             info!("Received EOF reading from port {}", port_name);
             map.insert(
               port_name.to_string(),
-              Err(ErrorKind::PortEOFError(port_name.clone()).into()),
+              Err(WebsocketSerialServerError::PortEofError {
+                port: port_name.to_owned(),
+              }),
             );
           } else {
             let bytes = buffer[0..bytes_read].to_vec();
             map.insert(port_name.to_string(), Ok(bytes));
           }
         }
-        Err(e) => {
-          // debug!("Error {} reading from port {}", e, port_name);
-          match e.description() {
-            "Operation timed out" => {}
-            _ => {
-              map.insert(port_name.to_string(), Err(e.into()));
+        Err(error) => {
+          if let WebsocketSerialServerError::Other(error) = error {
+            if let Ok(serial_port_error) = error.downcast::<serialport::Error>() {
+              // Nop case
+            } else {
+              map.insert(port_name.to_string(), Err(error.into()));
             }
+          } else {
+            map.insert(port_name.to_string(), Err(error.into()));
           }
         }
       }
