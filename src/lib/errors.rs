@@ -1,4 +1,4 @@
-use crate::messages::{SerialRequest, SerialResponse};
+use crate::messages::SerialResponse;
 use anyhow;
 use thiserror::Error;
 

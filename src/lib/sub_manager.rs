@@ -143,7 +143,12 @@ impl SubscriptionManager {
       None => Err(WebsocketSerialServerError::SubscriptionNotFound {
         subscription_id: sub_id.to_owned(),
       }),
-      Some(sub) => Ok(sub.subscriber.send(msg).map_err(|e| WebsocketSerialServerError::Other(anyhow!(e)))?),
+      Some(sub) => Ok(
+        sub
+          .subscriber
+          .send(msg)
+          .map_err(|e| WebsocketSerialServerError::Other(anyhow!(e)))?,
+      ),
     }
   }
 

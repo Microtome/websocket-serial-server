@@ -41,10 +41,14 @@ impl WriteLockManager {
   /// return error
   pub fn check_owns_write_lock(&self, port_name: &String, sub_id: &String) -> Result<()> {
     match self.write_locks.get(port_name) {
-      None => Err(WebsocketSerialServerError::AlreadyWriteLocked { port: port_name.to_owned() }),
+      None => Err(WebsocketSerialServerError::AlreadyWriteLocked {
+        port: port_name.to_owned(),
+      }),
       Some(sid) => {
         if sid != sub_id {
-          Err(WebsocketSerialServerError::AlreadyWriteLocked { port: port_name.to_owned() })
+          Err(WebsocketSerialServerError::AlreadyWriteLocked {
+            port: port_name.to_owned(),
+          })
         } else {
           Ok(())
         }
@@ -64,7 +68,9 @@ impl WriteLockManager {
         self.write_locks.remove(port_name);
         Ok(())
       }
-      true => Err(WebsocketSerialServerError::AlreadyWriteLocked { port: port_name.to_owned() }),
+      true => Err(WebsocketSerialServerError::AlreadyWriteLocked {
+        port: port_name.to_owned(),
+      }),
     }
   }
 
@@ -103,7 +109,9 @@ impl WriteLockManager {
           .insert(port_name.to_string(), sub_id.to_string());
         Ok(())
       }
-      true => Err(WebsocketSerialServerError::AlreadyWriteLocked { port: port_name.to_owned() }),
+      true => Err(WebsocketSerialServerError::AlreadyWriteLocked {
+        port: port_name.to_owned(),
+      }),
     }
   }
 }

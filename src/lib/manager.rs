@@ -243,9 +243,9 @@ impl Manager {
       .port_manager
       .list_ports()
       .map(|v| v.iter().map(|v| v.port_name.clone()).collect());
-    match port_names.map(|pns| SerialResponse::List { ports: pns }){
+    match port_names.map(|pns| SerialResponse::List { ports: pns }) {
       Ok(response) => self.send_message(&sub_id, response),
-      Err(error) => self.send_message(&sub_id, error.into())
+      Err(error) => self.send_message(&sub_id, error.into()),
     }
     Ok(())
   }
