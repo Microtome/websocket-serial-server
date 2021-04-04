@@ -8,29 +8,34 @@ readme = "README.md"
 license-file = "LICENSE"
 
 [dependencies]
+anyhow = "1.0.40"
 argparse = "0.2.2"
+async-trait = "0.1.48"
 base64 = "0.13.0"
 daemonize = "0.4.1"
 debug_stub_derive = "0.3.0"
 env_logger = "0.8.3"
 error-chain = "0.12.4"
+figment = "0.10.5"
 hyper = "0.14.5"
+hyper-tungstenite = "0.3.1"
 log = "0.4.14"
 rand = "0.8.3"
 serde = "1.0.125"
 serde_derive = "1.0.125"
 serde_json = "1.0.64"
 serialport = "4.0.0"
+thiserror = "1.0.24"
 thread-control = "0.1.2"
+tokio = { version = "1.4.0", features = ["full"] }
 toml = "0.5.8"
-websocket = "0.26.2"
 
 [dev-dependencies]
 tempfile = "3.2.0"
 
 [lib]
-name="lib"
-path="src/lib/mod.rs"
+name = "lib"
+path = "src/lib/mod.rs"
 
 [[bin]]
 name = "wsss"
