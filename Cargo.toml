@@ -1,6 +1,6 @@
 [package]
 edition = "2018"
-name = "websocket_serial_server"
+name = "websocket_serial_port_server"
 version = "0.2.0"
 authors = ["Daniel Joyce <daniel.a.joyce@gmail.com>"]
 description = "A websocket server providing access to local serial ports"
@@ -16,7 +16,7 @@ daemonize = "0.4.1"
 debug_stub_derive = "0.3.0"
 env_logger = "0.8.3"
 error-chain = "0.12.4"
-figment = "0.10.5"
+figment = { version = "0.10.5", features = ["env", "json", "toml", "yaml"] }
 hyper = "0.14.5"
 hyper-tungstenite = "0.3.1"
 log = "0.4.14"
@@ -25,18 +25,18 @@ serde = "1.0.125"
 serde_derive = "1.0.125"
 serde_json = "1.0.64"
 serialport = "4.0.0"
+structopt = { version = "0.3", default-features = false }
 thiserror = "1.0.24"
 thread-control = "0.1.2"
 tokio = { version = "1.4.0", features = ["full"] }
-toml = "0.5.8"
 
 [dev-dependencies]
 tempfile = "3.2.0"
 
 [lib]
-name = "lib"
+name = "wssps"
 path = "src/lib/mod.rs"
 
 [[bin]]
-name = "wsss"
+name = "wssps"
 path = "src/bin/main.rs"

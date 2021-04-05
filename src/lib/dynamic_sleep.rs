@@ -85,6 +85,8 @@ impl DynamicSleep {
         let subsec_nanos = dur.subsec_nanos();
         self.last_instant = Some(now);
         if dur.as_secs() > 0 || subsec_nanos > self._period_nanos {
+          // Count more accurately, slips of X seconds should count more.
+          // At 33 hz, 1 sec of slippage = 33 slips...
           self.slips += 1;
           return;
         } else {
@@ -94,7 +96,7 @@ impl DynamicSleep {
           // If we have had slippage within the last second ( approx )
           // then we log it.
           if log_enabled!(Warn) {
-            warn!("'{}' slipped {} times in last second", self.tag, self.slips);
+            warn!("'{}' slipped {} times", self.tag, self.slips);
           }
           self.slips = 0;
           self.cycles = 0;

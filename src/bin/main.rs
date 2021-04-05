@@ -7,7 +7,7 @@
 //!
 //! ## Running
 //!
-//! ```./wsss```
+//! ```./wssps```
 //!
 //! For information on configuration please check out
 //! the [cfg](../lib/cfg/index.html) package in serialsupport
@@ -34,24 +34,24 @@ use websocket::result::WebSocketError;
 use websocket::server::upgrade::WsUpgrade;
 use websocket::{Message, Server};
 
-use lib::cfg::*;
-use lib::dynamic_sleep::DynamicSleep;
-use lib::errors as e;
-use lib::manager::Manager;
-use lib::messages::*;
+use wssps::cfg::*;
+use wssps::dynamic_sleep::DynamicSleep;
+use wssps::errors as e;
+use wssps::manager::Manager;
+use wssps::messages::*;
 
 /// Max number of failures we allow when trying to send
 /// data to client before exiting
 /// TODO: Make configurable
 pub const MAX_SEND_ERROR_COUNT: u32 = 5;
 
-/// Launches wsss
+/// Launches wssps
 pub fn main() {
   // Init logger
   env_logger::init().expect("Initialization of logging system failed!");
 
   // Grab config
-  let cfg = WsssConfig::load();
+  let cfg = WsspsConfig::load();
 
   // html file for landing page
   let websocket_html = include_str!("websockets.html").replace(

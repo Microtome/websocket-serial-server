@@ -2,7 +2,7 @@
 
 ## Configuration
 
-wsss supports configuration in several different ways, by commandline parameters, env variables, and config files
+wssps supports configuration in several different ways, by commandline parameters, env variables, and config files
 
 commandline options override env variables, which overrides file based config.
 
@@ -12,11 +12,11 @@ Currently the following values may be specified
 * `ws_port` The port the websocket listens on, defaults to 10081
 * `bind_address` The ip address the server binds to, defaults to 127.0.0.1 ( localhost )
 
-When wsss starts, it first tries to load configuration information from the following files: 
+When wssps starts, it first tries to load configuration information from the following files: 
 
 1. The file specified by the environment variable `WSS_CONF_FILE`
-1. It then tries to load the file in `/etc/wsss/wsss_conf.toml`
-1. It then tries to load a `wsss_conf.toml` file located in the same directory as the wsss executable
+1. It then tries to load the file in `/etc/wssps/wssps_conf.toml`
+1. It then tries to load a `wssps_conf.toml` file located in the same directory as the wssps executable
 
 **Only the first file found is loaded.**
 
@@ -40,13 +40,13 @@ The following env variable names are searched:
 
 Finally it parses and uses any configuration passed in via commandline arguments
 
-Available commandline arguments can be found via running `wsss -h` or `wsss --help`
+Available commandline arguments can be found via running `wssps -h` or `wssps --help`
 
 sample output:
 
 ```
 Usage:
-    ./target/debug/wsss [OPTIONS]
+    ./target/debug/wssps [OPTIONS]
 
 Provide access to serial ports over JSON Websockets
 

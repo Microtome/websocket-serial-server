@@ -132,9 +132,14 @@ impl PortManager {
           }
         }
         Err(error) => {
-          if let WebsocketSerialServerError::Other(error) = error {
-            if let Ok(serial_port_error) = error.downcast::<serialport::Error>() {
-              // Nop case
+          if let WebsocketSerialServerError::Other(ref other_error) = error {
+            if let Some(serial_port_error) = other_error.downcast_ref::<serialport::Error>() {
+              match serial_port_error.description.as_str() {
+                "Operation timed out" => {} //Nop
+                _ => {
+                  map.insert(port_name.to_string(), Err(error.into()));
+                }
+              }
             } else {
               map.insert(port_name.to_string(), Err(error.into()));
             }

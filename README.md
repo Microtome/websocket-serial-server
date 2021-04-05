@@ -1,4 +1,4 @@
-# websocket-serial-server (wsss)
+# websocket-serial-server (wssps)
 
 [![Build Status](https://travis-ci.org/DanielJoyce/websocket-serial-server.svg?branch=master)](https://travis-ci.org/DanielJoyce/websocket-serial-server)
 
@@ -41,7 +41,7 @@ such use case, this is fine.
 
 Once Websocket-rs moves to tokio, this limitation can be removed
 
-*There is no support for custom protocol or buffer handlers.* That should be handled by client libraries. The purpose of wsss is to simply get data from a serial port to clients and vice-versa.
+*There is no support for custom protocol or buffer handlers.* That should be handled by client libraries. The purpose of wssps is to simply get data from a serial port to clients and vice-versa.
 
 ## Developing
 
@@ -91,7 +91,7 @@ build:
 
 run:
 
-`./target/debug/wsss`, or if built with `--release`, `./target/release/wsss`
+`./target/debug/wssps`, or if built with `--release`, `./target/release/wssps`
 
 use `-p` or `--port` to set http port (default is 8080)
 
@@ -99,11 +99,11 @@ then browse to `http://localhost:PORT` to find the test page.
 
 ### Logging
 
-Wsss makes extensive use of logging and the [env_logger](https://crates.io/crates/env_logger) crate
+Wssps makes extensive use of logging and the [env_logger](https://crates.io/crates/env_logger) crate
  
 Please read the env_logger docs for more information, but here is a quick example:
 
-```RUST_LOG=debug ./target/debug/wsss```
+```RUST_LOG=debug ./target/debug/wssps```
 
 ## TODO
 

@@ -12,7 +12,7 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
-pub mod cfg;
+pub mod configuration;
 pub mod common;
 pub mod dynamic_sleep;
 pub mod errors;

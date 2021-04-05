@@ -3,6 +3,7 @@ use anyhow;
 use thiserror::Error;
 
 /// The kinds of errors that WebsocketSerialServer can return
+/// TODO Rename to WsspsError
 #[derive(Error, Debug)]
 pub enum WebsocketSerialServerError {
   /// Unknown server request
