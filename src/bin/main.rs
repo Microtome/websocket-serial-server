@@ -15,266 +15,293 @@
 //! You can open/close ports, read and write data, and see the
 //! responses. All messages are in JSON format
 
-#[macro_use]
-extern crate log;
+use std::convert::Infallible;
+use std::net::SocketAddr;
 
-use std::io::Write;
-use std::net::TcpStream;
-use std::sync::mpsc::{channel, Sender};
-use std::thread;
+use hyper::{Body, Request, Response, Server};
+use hyper::StatusCode;
+use routerify::prelude::*;
+use routerify::{Middleware, RequestInfo, Router, RouterService};
+use tracing::*;
 
-use hyper::net::Fresh;
-use hyper::server::request::Request;
-use hyper::server::response::Response;
-use hyper::Server as HttpServer;
-use rand::{thread_rng, Rng};
-use websocket::client::Writer;
-use websocket::message::Type;
-use websocket::result::WebSocketError;
-use websocket::server::upgrade::WsUpgrade;
-use websocket::{Message, Server};
-
-use wssps::cfg::*;
-use wssps::dynamic_sleep::DynamicSleep;
-use wssps::errors as e;
-use wssps::manager::Manager;
-use wssps::messages::*;
+use wssps::configuration::WsspsConfig;
 
 /// Max number of failures we allow when trying to send
 /// data to client before exiting
 /// TODO: Make configurable
-pub const MAX_SEND_ERROR_COUNT: u32 = 5;
+const MAX_SEND_ERROR_COUNT: u32 = 5;
+
+const INDEX_PAGE_HTML: &'static str = include_str!("websockets.html");
+
+#[instrument]
+async fn index_page_handler(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    let response = Response::builder()
+        .header("Content-Type", "text/html; charset=UTF-8")
+        .body(INDEX_PAGE_HTML.into()).expect("Wow, this should not fail");
+    Ok(response)
+}
+
+#[instrument]
+async fn error_handler(err: routerify::RouteError, _: RequestInfo) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(Body::from(format!("Server encountered an error: {:?}", err)))
+        .unwrap()
+}
+
+// Create a `Router<Body, Infallible>` for response body type `hyper::Body`
+// and for handler error type `Infallible`.
+fn router() -> Router<Body, Infallible> {
+    // Create a router and specify the logger middleware and the handlers.
+    // Here, "Middleware::pre" means we're adding a pre middleware which will be executed
+    // before any route handlers.
+    Router::builder()
+        .get("/", index_page_handler)
+        .err_handler_with_info(error_handler)
+        .build()
+        .unwrap()
+}
 
 /// Launches wssps
-pub fn main() {
-  // Init logger
-  env_logger::init().expect("Initialization of logging system failed!");
+#[tokio::main]
+async fn main() {
+    // init tracing/logging
+    tracing_subscriber::fmt::init();
 
-  // Grab config
-  let cfg = WsspsConfig::load();
+    // Grab config
+    let cfg = WsspsConfig::get();
 
-  // html file for landing page
-  let websocket_html = include_str!("websockets.html").replace(
-    "__WS_PORT__ = 8081",
-    &format!("__WS_PORT__ = {}", cfg.ws_port),
-  );
+    let router = router();
 
-  // The HTTP server handler
-  let http_handler = move |_: Request, response: Response<Fresh>| {
-    let mut response = response.start().expect(&"Could not start response");
-    // Send a client webpage
-    response
-      .write_all(websocket_html.as_bytes())
-      .expect(&"Could not get template as bytes");
-    response.end().expect(&"Send response failed");
-  };
+    // Create a Service from the router above to handle incoming requests.
+    let service = RouterService::new(router).unwrap();
 
-  info!("Using ports {} {}", cfg.http_port, cfg.ws_port);
+    // The address on which the server will be listening.
+    let addr = SocketAddr::new(cfg.address, cfg.port);
 
-  // Set up channels and Manager
-  let (sub_tx, sub_rx) = channel::<SubscriptionRequest>();
-  let (sreq_tx, sreq_rx) = channel::<(String, SerialRequest)>();
-  Manager::spawn(sreq_rx, sub_rx);
+    // Create a server by passing the created service to `.serve` method.
+    let server = Server::bind(&addr).serve(service);
 
-  // Start listening for http connections
-  let http_server = HttpServer::http(format!("{}:{}", cfg.bind_address, cfg.http_port)).expect(
-    &format!("Failed to create http server on port {}", cfg.http_port),
-  );
+    println!("WSSPS is running on: {}", addr);
+    if let Err(err) = server.await {
+        eprintln!("Server error: {}", err);
+   }
+    //   // The HTTP server handler
+    //   let http_handler = move |_: Request, response: Response<Fresh>| {
+    //     let mut response = response.start().expect(&"Could not start response");
+    //     // Send a client webpage
+    //     response
+    //       .write_all(websocket_html.as_bytes())
+    //       .expect(&"Could not get template as bytes");
+    //     response.end().expect(&"Send response failed");
+    //   };
 
-  thread::spawn(move || {
-    http_server.handle(http_handler).expect(&"Failed to listen");
-  });
+    //   info!("Using ports {} {}", cfg.http_port, cfg.ws_port);
 
-  // Start listening for WebSocket connections
-  let ws_server = Server::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port))
-    .expect(&format!("Failed bind on websocket port {}", cfg.ws_port));
+    //   // Set up channels and Manager
+    //   let (sub_tx, sub_rx) = channel::<SubscriptionRequest>();
+    //   let (sreq_tx, sreq_rx) = channel::<(String, SerialRequest)>();
+    //   Manager::spawn(sreq_rx, sub_rx);
 
-  // Continuously iterate over connections,
-  // spawning handlers
-  for connection in ws_server.filter_map(Result::ok) {
-    // Set up subscription id
-    // let ts = SystemTime::now() - UNIX_EPOCH
-    let prefix: String = thread_rng().gen_ascii_chars().take(8).collect();
-    let sub_id = format!("thread-{}-{}", prefix, rand::random::<u16>());
-    debug!("{}: spawned.", sub_id);
+    //   // Start listening for http connections
+    //   let http_server = HttpServer::http(format!("{}:{}", cfg.bind_address, cfg.http_port)).expect(
+    //     &format!("Failed to create http server on port {}", cfg.http_port),
+    //   );
 
-    // Spawn a new thread for each connection.
-    let sub_tx_clone = sub_tx.clone();
-    let sreq_tx_clone = sreq_tx.clone();
-    spawn_ws_handler(sub_id, sub_tx_clone, sreq_tx_clone, connection);
-  }
-}
+    //   thread::spawn(move || {
+    //     http_server.handle(http_handler).expect(&"Failed to listen");
+    //   });
 
-/// Spawn a websocket handler into its own thread
-fn spawn_ws_handler(
-  sub_id: String,
-  sub_tx_clone: Sender<SubscriptionRequest>,
-  sreq_tx_clone: Sender<(String, SerialRequest)>,
-  connection: WsUpgrade<TcpStream>,
-) {
-  thread::spawn(move || ws_handler(sub_id, &sub_tx_clone, &sreq_tx_clone, connection));
-}
+    //   // Start listening for WebSocket connections
+    //   let ws_server = Server::bind(format!("{}:{}", cfg.bind_address, cfg.ws_port))
+    //     .expect(&format!("Failed bind on websocket port {}", cfg.ws_port));
 
-/// Websocket handler
-fn ws_handler(
-  sub_id: String,
-  sub_tx: &Sender<SubscriptionRequest>,
-  sreq_tx: &Sender<(String, SerialRequest)>,
-  connection: WsUpgrade<TcpStream>,
-) {
-  if !connection
-    .protocols()
-    .contains(&"websocket-serial-json".to_string())
-  {
-    connection.reject().expect(&"Connection rejection failed.");
-    return;
-  }
+    //   // Continuously iterate over connections,
+    //   // spawning handlers
+    //   for connection in ws_server.filter_map(Result::ok) {
+    //     // Set up subscription id
+    //     // let ts = SystemTime::now() - UNIX_EPOCH
+    //     let prefix: String = thread_rng().gen_ascii_chars().take(8).collect();
+    //     let sub_id = format!("thread-{}-{}", prefix, rand::random::<u16>());
+    //     debug!("{}: spawned.", sub_id);
 
-  connection
-    .tcp_stream()
-    .set_nonblocking(true)
-    .expect(&"Setting stream non-blocking failed.");
+    //     // Spawn a new thread for each connection.
+    //     let sub_tx_clone = sub_tx.clone();
+    //     let sreq_tx_clone = sreq_tx.clone();
+    //     spawn_ws_handler(sub_id, sub_tx_clone, sreq_tx_clone, connection);
+    //   }
+    // }
 
-  // Create response channel
-  let (sub_resp_tx, sub_resp_rx) = channel::<SerialResponse>();
+    // /// Spawn a websocket handler into its own thread
+    // fn spawn_ws_handler(
+    //   sub_id: String,
+    //   sub_tx_clone: Sender<SubscriptionRequest>,
+    //   sreq_tx_clone: Sender<(String, SerialRequest)>,
+    //   connection: WsUpgrade<TcpStream>,
+    // ) {
+    //   thread::spawn(move || ws_handler(sub_id, &sub_tx_clone, &sreq_tx_clone, connection));
+    // }
 
-  // Register sub_id with manager
-  sub_tx
-    .send(SubscriptionRequest {
-      sub_id: sub_id.clone(),
-      subscriber: sub_resp_tx,
-    })
-    .expect(&format!("{}: Registering with manager failed.", sub_id));
+    // /// Websocket handler
+    // fn ws_handler(
+    //   sub_id: String,
+    //   sub_tx: &Sender<SubscriptionRequest>,
+    //   sreq_tx: &Sender<(String, SerialRequest)>,
+    //   connection: WsUpgrade<TcpStream>,
+    // ) {
+    //   if !connection
+    //     .protocols()
+    //     .contains(&"websocket-serial-json".to_string())
+    //   {
+    //     connection.reject().expect(&"Connection rejection failed.");
+    //     return;
+    //   }
 
-  let client = connection
-    .use_protocol(format!("websocket-serial-json"))
-    .accept()
-    .expect(&format!("{}: Accept protocol failed.", sub_id));
+    //   connection
+    //     .tcp_stream()
+    //     .set_nonblocking(true)
+    //     .expect(&"Setting stream non-blocking failed.");
 
-  let ip = client
-    .peer_addr()
-    .expect(&format!("{}: Could not get peer address", sub_id));
+    //   // Create response channel
+    //   let (sub_resp_tx, sub_resp_rx) = channel::<SerialResponse>();
 
-  info!("{}: Connection from {}", sub_id, ip);
+    //   // Register sub_id with manager
+    //   sub_tx
+    //     .send(SubscriptionRequest {
+    //       sub_id: sub_id.clone(),
+    //       subscriber: sub_resp_tx,
+    //     })
+    //     .expect(&format!("{}: Registering with manager failed.", sub_id));
 
-  let (mut receiver, mut sender) = client
-    .split()
-    .expect(&format!("{}: WS client error", sub_id));
+    //   let client = connection
+    //     .use_protocol(format!("websocket-serial-json"))
+    //     .accept()
+    //     .expect(&format!("{}: Accept protocol failed.", sub_id));
 
-  let mut send_error_count = 0;
+    //   let ip = client
+    //     .peer_addr()
+    //     .expect(&format!("{}: Could not get peer address", sub_id));
 
-  let mut dynamic_sleep = DynamicSleep::new("main");
+    //   info!("{}: Connection from {}", sub_id, ip);
 
-  'msg_loop: loop {
-    dynamic_sleep.sleep();
+    //   let (mut receiver, mut sender) = client
+    //     .split()
+    //     .expect(&format!("{}: WS client error", sub_id));
 
-    // Try and read a WS message
-    match receiver.recv_message::<Message, _, _>() {
-      Ok(message) => {
-        match message.opcode {
-          Type::Close => {
-            let message = Message::close();
-            sender
-              .send_message(&message)
-              .unwrap_or(info!("{}: Client {} hung up!", sub_id, ip));
-            // Send close request to cleanup resources
-            sreq_tx
-              .send((sub_id.clone(), SerialRequest::Close { port: None }))
-              .unwrap_or_else(|e| {
-                warn!(
-                  "Client exit cleanup failed for sub_id '{}', cause '{}'",
-                  sub_id, e
-                )
-              });
-            info!("{}: Client {} disconnected", sub_id, ip);
-            break 'msg_loop;
-          }
+    //   let mut send_error_count = 0;
 
-          Type::Ping => {
-            let message = Message::pong(message.payload);
-            sender
-              .send_message(&message)
-              .unwrap_or(info!("{}:  Could not ping client {}!", sub_id, ip));
-          }
+    //   let mut dynamic_sleep = DynamicSleep::new("main");
 
-          _ => {
-            // Get the payload, in a lossy manner
-            let msg = String::from_utf8_lossy(&message.payload);
+    //   'msg_loop: loop {
+    //     dynamic_sleep.sleep();
 
-            // So we will get a result <SerialRequest::*,SerialResponse::Error> back
-            match serde_json::from_str(&msg) {
-              Ok(req) => {
-                match sreq_tx.send((sub_id.clone(), req)) {
-                  Err(err) => {
-                    let error = e::ErrorKind::SendRequest(err).into();
-                    send_serial_response_error(&sub_id, &mut sender, error);
-                  }
-                  _ => {}
-                };
-              }
-              Err(err) => {
-                let error = e::ErrorKind::Json(err).into();
-                send_serial_response_error(&sub_id, &mut sender, error);
-              }
-            };
-          }
-        };
-      }
-      Err(e) => {
-        match e {
-          WebSocketError::NoDataAvailable => { /*Logging?*/ }
-          _ => { /*Logging?*/ }
-        };
-      }
-    }
+    //     // Try and read a WS message
+    //     match receiver.recv_message::<Message, _, _>() {
+    //       Ok(message) => {
+    //         match message.opcode {
+    //           Type::Close => {
+    //             let message = Message::close();
+    //             sender
+    //               .send_message(&message)
+    //               .unwrap_or(info!("{}: Client {} hung up!", sub_id, ip));
+    //             // Send close request to cleanup resources
+    //             sreq_tx
+    //               .send((sub_id.clone(), SerialRequest::Close { port: None }))
+    //               .unwrap_or_else(|e| {
+    //                 warn!(
+    //                   "Client exit cleanup failed for sub_id '{}', cause '{}'",
+    //                   sub_id, e
+    //                 )
+    //               });
+    //             info!("{}: Client {} disconnected", sub_id, ip);
+    //             break 'msg_loop;
+    //           }
 
-    // Send on any serial responses
-    match sub_resp_rx.try_recv() {
-      Ok(resp) => match serde_json::to_string(&resp) {
-        Ok(json) => {
-          let reply = Message::text(json.clone());
-          sender.send_message(&reply).unwrap_or_else(|e| {
-            send_error_count += 1;
-            info!(
-              "{}: Could not send message '{}' to client '{}', cause '{}'",
-              sub_id, json, ip, e
-            )
-          });
-        }
-        Err(_) => {}
-      },
-      _ => { /*Logging*/ }
-    };
+    //           Type::Ping => {
+    //             let message = Message::pong(message.payload);
+    //             sender
+    //               .send_message(&message)
+    //               .unwrap_or(info!("{}:  Could not ping client {}!", sub_id, ip));
+    //           }
 
-    if send_error_count > MAX_SEND_ERROR_COUNT {
-      warn!(
-        "{}: Client send error count exceeded! Shutting down msg loop.",
-        &sub_id
-      );
-      break 'msg_loop;
-    }
-  }
+    //           _ => {
+    //             // Get the payload, in a lossy manner
+    //             let msg = String::from_utf8_lossy(&message.payload);
 
-  info!("{}: Shutting down!", sub_id);
-}
+    //             // So we will get a result <SerialRequest::*,SerialResponse::Error> back
+    //             match serde_json::from_str(&msg) {
+    //               Ok(req) => {
+    //                 match sreq_tx.send((sub_id.clone(), req)) {
+    //                   Err(err) => {
+    //                     let error = e::ErrorKind::SendRequest(err).into();
+    //                     send_serial_response_error(&sub_id, &mut sender, error);
+    //                   }
+    //                   _ => {}
+    //                 };
+    //               }
+    //               Err(err) => {
+    //                 let error = e::ErrorKind::Json(err).into();
+    //                 send_serial_response_error(&sub_id, &mut sender, error);
+    //               }
+    //             };
+    //           }
+    //         };
+    //       }
+    //       Err(e) => {
+    //         match e {
+    //           WebSocketError::NoDataAvailable => { /*Logging?*/ }
+    //           _ => { /*Logging?*/ }
+    //         };
+    //       }
+    //     }
 
-/// Send an error to the given subscriber
-/// Log a warning if the message can't be sent
-/// This is usually ok as it means the client
-/// has simply disconnected
-fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
-  let error = e::to_serial_response_error(error);
-  serde_json::to_string(&error)
-    .map_err(|err| e::ErrorKind::Json(err))
-    .map(|json| Message::text(json))
-    .map(|msg| {
-      sender
-        .send_message::<Message, _>(&msg)
-        .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
-    })
-    .unwrap_or_else(|_| {
-      warn!("{}: Problem sending bad json error response", sub_id);
-      Ok(())
-    })
-    .is_ok(); // This shouldn't be needed?
+    //     // Send on any serial responses
+    //     match sub_resp_rx.try_recv() {
+    //       Ok(resp) => match serde_json::to_string(&resp) {
+    //         Ok(json) => {
+    //           let reply = Message::text(json.clone());
+    //           sender.send_message(&reply).unwrap_or_else(|e| {
+    //             send_error_count += 1;
+    //             info!(
+    //               "{}: Could not send message '{}' to client '{}', cause '{}'",
+    //               sub_id, json, ip, e
+    //             )
+    //           });
+    //         }
+    //         Err(_) => {}
+    //       },
+    //       _ => { /*Logging*/ }
+    //     };
+
+    //     if send_error_count > MAX_SEND_ERROR_COUNT {
+    //       warn!(
+    //         "{}: Client send error count exceeded! Shutting down msg loop.",
+    //         &sub_id
+    //       );
+    //       break 'msg_loop;
+    //     }
+    //   }
+
+    //   info!("{}: Shutting down!", sub_id);
+    // }
+
+    // /// Send an error to the given subscriber
+    // /// Log a warning if the message can't be sent
+    // /// This is usually ok as it means the client
+    // /// has simply disconnected
+    // fn send_serial_response_error(sub_id: &String, sender: &mut Writer<TcpStream>, error: e::Error) {
+    //   let error = e::to_serial_response_error(error);
+    //   serde_json::to_string(&error)
+    //     .map_err(|err| e::ErrorKind::Json(err))
+    //     .map(|json| Message::text(json))
+    //     .map(|msg| {
+    //       sender
+    //         .send_message::<Message, _>(&msg)
+    //         .map_err::<e::Error, _>(|err| e::ErrorKind::SendWsMessage(err).into())
+    //     })
+    //     .unwrap_or_else(|_| {
+    //       warn!("{}: Problem sending bad json error response", sub_id);
+    //       Ok(())
+    //     })
+    //     .is_ok(); // This shouldn't be needed?
 }
