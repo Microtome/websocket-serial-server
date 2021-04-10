@@ -1,7 +1,7 @@
 [package]
 edition = "2018"
 name = "websocket_serial_port_server"
-version = "0.2.0"
+version = "0.2.0-dev"
 authors = ["Daniel Joyce <daniel.a.joyce@gmail.com>"]
 description = "A websocket server providing access to local serial ports"
 readme = "README.md"
@@ -21,11 +21,16 @@ hyper = "0.14.5"
 hyper-tungstenite = "0.3.1"
 log = "0.4.14"
 rand = "0.8.3"
+routerify = "2.0.0"
 serde = "1.0.125"
+serde_with = "1.8.0"
 serde_derive = "1.0.125"
 serde_json = "1.0.64"
 serialport = "4.0.0"
 structopt = { version = "0.3", default-features = false }
+tracing = "0.1"
+tracing-futures = "0.2"
+tracing-subscriber = "0.2"
 thiserror = "1.0.24"
 thread-control = "0.1.2"
 tokio = { version = "1.4.0", features = ["full"] }
