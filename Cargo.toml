@@ -17,6 +17,7 @@ debug_stub_derive = "0.3.0"
 env_logger = "0.8.3"
 error-chain = "0.12.4"
 figment = { version = "0.10.5", features = ["env", "json", "toml", "yaml"] }
+futures-util = "0.3"
 hyper = "0.14.5"
 hyper-tungstenite = "0.3.1"
 log = "0.4.14"

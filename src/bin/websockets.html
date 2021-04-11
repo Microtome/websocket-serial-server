@@ -97,7 +97,7 @@
 	</p>
 </body>
 <script>
-	let socket = new WebSocket("ws://" + location.host + "/ws", "wssps-json");
+	let socket = new WebSocket("ws://" + location.host);
 
 	socket.onopen = (event) => {
 		listPorts();

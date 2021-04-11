@@ -15,16 +15,19 @@
 //! You can open/close ports, read and write data, and see the
 //! responses. All messages are in JSON format
 
-use std::convert::Infallible;
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
+use hyper_tungstenite::tungstenite::Message;
 use std::net::SocketAddr;
 
-use hyper::{Body, Request, Response, Server};
 use hyper::StatusCode;
-use routerify::prelude::*;
-use routerify::{Middleware, RequestInfo, Router, RouterService};
+use hyper::{Body, Request, Response, Server};
+use hyper_tungstenite::HyperWebsocket;
+use routerify::{RequestInfo, Router, RouterService};
 use tracing::*;
 
 use wssps::configuration::WsspsConfig;
+use wssps::errors::*;
 
 /// Max number of failures we allow when trying to send
 /// data to client before exiting
@@ -33,25 +36,74 @@ const MAX_SEND_ERROR_COUNT: u32 = 5;
 
 const INDEX_PAGE_HTML: &'static str = include_str!("websockets.html");
 
+/// Handle a HTTP or WebSocket request.
 #[instrument]
-async fn index_page_handler(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let response = Response::builder()
-        .header("Content-Type", "text/html; charset=UTF-8")
-        .body(INDEX_PAGE_HTML.into()).expect("Wow, this should not fail");
-    Ok(response)
+async fn index_page_handler(request: Request<Body>) -> Result<Response<Body>> {
+    // Check if the request is a websocket upgrade request.
+    if hyper_tungstenite::is_upgrade_request(&request) {
+        let (response, websocket) = hyper_tungstenite::upgrade(request, None)?;
+
+        // Spawn a task to handle the websocket connection.
+        tokio::spawn(async move {
+            if let Err(e) = serve_websocket(websocket).await {
+                eprintln!("Error in websocket connection: {}", e);
+            }
+        });
+
+        // Return the response so the spawned future can continue.
+        Ok(response)
+    } else {
+        let response = Response::builder()
+            .header("Content-Type", "text/html; charset=UTF-8")
+            .body(INDEX_PAGE_HTML.into())
+            .expect("Wow, this should not fail");
+        Ok(response)
+    }
+}
+
+/// Handle a websocket connection.
+// #[instrument]
+async fn serve_websocket(websocket: HyperWebsocket) -> Result<()> {
+    let mut websocket = websocket.await?;
+    while let Some(message) = websocket.next().await {
+        let message = message?;
+
+        if let Some(reply) = match message {
+            Message::Ping(payload) => Some(Message::Pong(payload)),
+            Message::Pong(_) => {
+                // Didn't send a ping, somehow got a pong.
+                info!("Got pong, didn't send ping. Weird!");
+                None
+            }
+            message @ Message::Text(_) => Some(message),
+            message @ Message::Binary(_) => Some(message),
+            Message::Close(_) => {
+                info!("Remote end closed connection!");
+                break;
+            }
+        } {
+            // echo it back for now
+            websocket.send(reply).await?;
+        }
+    }
+
+    Ok(())
 }
 
 #[instrument]
 async fn error_handler(err: routerify::RouteError, _: RequestInfo) -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::from(format!("Server encountered an error: {:?}", err)))
+        .body(Body::from(format!(
+            "Server encountered an error: {:?}",
+            err
+        )))
         .unwrap()
 }
 
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
-fn router() -> Router<Body, Infallible> {
+fn router() -> Router<Body, WebsocketSerialServerError> {
     // Create a router and specify the logger middleware and the handlers.
     // Here, "Middleware::pre" means we're adding a pre middleware which will be executed
     // before any route handlers.
@@ -64,6 +116,7 @@ fn router() -> Router<Body, Infallible> {
 
 /// Launches wssps
 #[tokio::main]
+#[instrument]
 async fn main() {
     // init tracing/logging
     tracing_subscriber::fmt::init();
@@ -85,7 +138,7 @@ async fn main() {
     println!("WSSPS is running on: {}", addr);
     if let Err(err) = server.await {
         eprintln!("Server error: {}", err);
-   }
+    }
     //   // The HTTP server handler
     //   let http_handler = move |_: Request, response: Response<Fresh>| {
     //     let mut response = response.start().expect(&"Could not start response");
