@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::error::Error;
 use std::iter::FromIterator;
 use std::time::Duration;
 
+use anyhow::anyhow;
 use serialport as sp;
 
 use crate::errors::*;
@@ -12,7 +12,7 @@ struct OpenPort {
   /// The opened serial port
   /// SerialPort is not Sized, so it makes hashmap mad
   /// and so we deal with these shennanigans
-  port: Box<sp::SerialPort>,
+  port: Box<dyn sp::SerialPort>,
 }
 
 impl OpenPort {
@@ -22,7 +22,7 @@ impl OpenPort {
       .port
       .write_all(data)
       .and_then(|_| self.port.flush())
-      .map_err(|err| ErrorKind::Io(err).into())
+      .map_err(|error| WebsocketSerialServerError::Other(anyhow!(error)))
   }
 
   /// Read data from the serial port
@@ -30,7 +30,7 @@ impl OpenPort {
     self
       .port
       .read(buff)
-      .map_err(|err| ErrorKind::Io(err).into())
+      .map_err(|error| WebsocketSerialServerError::Other(anyhow!(error)))
   }
 }
 
@@ -49,50 +49,50 @@ impl PortManager {
   }
 
   /// Has the port been opened
-  pub fn is_port_open(&self, port_name: &String) -> bool {
+  pub fn is_port_open(&self, port_name: &str) -> bool {
     self.open_ports.contains_key(port_name)
   }
 
   /// List all serial ports
   pub fn list_ports(&self) -> Result<Vec<sp::SerialPortInfo>> {
-    sp::available_ports().map_err(|e| ErrorKind::Serialport(e).into())
+    Ok(sp::available_ports().map_err(|error| WebsocketSerialServerError::Other(anyhow!(error)))?)
   }
 
   /// Open a port
-  pub fn open_port(&mut self, port_name: &String) -> Result<()> {
+  pub fn open_port(&mut self, port_name: &str) -> Result<()> {
     if self.is_port_open(port_name) {
       Ok(())
     } else {
-      let sp_settings = sp::SerialPortSettings {
-        baud_rate: sp::BaudRate::Baud115200,
-        data_bits: sp::DataBits::Eight,
-        flow_control: sp::FlowControl::None,
-        parity: sp::Parity::None,
-        stop_bits: sp::StopBits::One,
-        timeout: Duration::from_millis(1),
-      };
+      let builder = sp::new(port_name, 115200)
+        .data_bits(sp::DataBits::Eight)
+        .flow_control(sp::FlowControl::None)
+        .parity(sp::Parity::None)
+        .stop_bits(sp::StopBits::One)
+        .timeout(Duration::from_millis(1));
 
-      match sp::open_with_settings(&port_name, &sp_settings) {
+      match builder.open() {
         Ok(serial_port) => {
           let open_port = OpenPort { port: serial_port };
           self.open_ports.insert(port_name.to_string(), open_port);
           Ok(())
         }
-        Err(e) => Err(ErrorKind::Serialport(e).into()),
+        Err(error) => Err(WebsocketSerialServerError::Other(anyhow!(error))),
       }
     }
   }
 
   /// Close a port
-  pub fn close_port(&mut self, port_name: &String) {
+  pub fn close_port(&mut self, port_name: &str) {
     // This drops the underlying serial port and box
     self.open_ports.remove(port_name);
   }
 
   /// Write data to the port
-  pub fn write_port(&mut self, port_name: &String, data: &[u8]) -> Result<()> {
+  pub fn write_port(&mut self, port_name: &str, data: &[u8]) -> Result<()> {
     match self.open_ports.get_mut(port_name) {
-      None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
+      None => Err(WebsocketSerialServerError::OpenPortNotFound {
+        port: port_name.to_owned(),
+      }),
       Some(p) => p.write_port(data),
     }
   }
@@ -100,9 +100,11 @@ impl PortManager {
   /// Read data from a port into the buffer buff
   /// If successful, returns Ok(usize) which is the number of
   /// bytes read
-  pub fn read_port(&mut self, port_name: &String, buff: &mut [u8]) -> Result<usize> {
+  pub fn read_port(&mut self, port_name: &str, buff: &mut [u8]) -> Result<usize> {
     match self.open_ports.get_mut(port_name) {
-      None => Err(ErrorKind::OpenPortNotFound(port_name.to_string()).into()),
+      None => Err(WebsocketSerialServerError::OpenPortNotFound {
+        port: port_name.to_owned(),
+      }),
       Some(p) => p.read_port(buff),
     }
   }
@@ -120,20 +122,29 @@ impl PortManager {
             info!("Received EOF reading from port {}", port_name);
             map.insert(
               port_name.to_string(),
-              Err(ErrorKind::PortEOFError(port_name.clone()).into()),
+              Err(WebsocketSerialServerError::PortEofError {
+                port: port_name.to_owned(),
+              }),
             );
           } else {
             let bytes = buffer[0..bytes_read].to_vec();
             map.insert(port_name.to_string(), Ok(bytes));
           }
         }
-        Err(e) => {
-          // debug!("Error {} reading from port {}", e, port_name);
-          match e.description() {
-            "Operation timed out" => {}
-            _ => {
-              map.insert(port_name.to_string(), Err(e.into()));
+        Err(error) => {
+          if let WebsocketSerialServerError::Other(ref other_error) = error {
+            if let Some(serial_port_error) = other_error.downcast_ref::<serialport::Error>() {
+              match serial_port_error.description.as_str() {
+                "Operation timed out" => {} //Nop
+                _ => {
+                  map.insert(port_name.to_string(), Err(error.into()));
+                }
+              }
+            } else {
+              map.insert(port_name.to_string(), Err(error.into()));
             }
+          } else {
+            map.insert(port_name.to_string(), Err(error.into()));
           }
         }
       }
@@ -153,8 +164,8 @@ mod tests {
   use std::io::Read;
   use std::io::Write;
 
-  use serialport::posix::TTYPort;
   use serialport::SerialPort;
+  use serialport::TTYPort;
 
   use super::*;
 
@@ -169,7 +180,7 @@ mod tests {
 
     let serial_msg = "abcdefg";
 
-    if let Some(s_name) = slave.port_name() {
+    if let Some(s_name) = slave.name() {
       let mut port_manager = PortManager::new();
 
       port_manager

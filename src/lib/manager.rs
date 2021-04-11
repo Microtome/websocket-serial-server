@@ -1,6 +1,5 @@
-//! Manages serial port state and communication with clients,
-//! and handling requests / responses
-
+/// Manages serial port state and communication with clients,
+/// and handling requests / responses
 use std::collections::HashSet;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
@@ -47,8 +46,8 @@ impl Manager {
       writelock_manager: WriteLockManager::new(),
       port_manager: PortManager::new(),
       sub_manager: SubscriptionManager::new(),
-      receiver: receiver,
-      subsc_receiver: subsc_receiver,
+      receiver,
+      subsc_receiver,
     }
   }
 
@@ -163,7 +162,7 @@ impl Manager {
     if let Err(e) = response {
       warn!("Error '{}' occured handling serial request message", e);
       // Send error?
-      self.send_message(&sub_id, to_serial_response_error(e));
+      self.send_message(&sub_id, e.into());
     }
   }
 
@@ -179,7 +178,7 @@ impl Manager {
     self.check_owns_writelock(&port_name, &sub_id)?;
     match base_64 {
       true => base64::decode(&data)
-        .map_err(|e| ErrorKind::Base64(e).into())
+        .map_err(|e| WebsocketSerialServerError::Other(e.into()))
         .and_then(|d| self.port_manager.write_port(&port_name, &d))
         .map(|_| self.send_message(&sub_id, SerialResponse::Wrote { port: port_name })),
       false => self
@@ -194,7 +193,7 @@ impl Manager {
     self.check_sub_id(&sub_id)?;
     self
       .writelock_manager
-      .lock_port(&port_name, &sub_id)
+      .try_lock_port(&port_name, &sub_id)
       .map(|_| self.send_message(&sub_id, SerialResponse::WriteLocked { port: port_name }))
   }
 
@@ -244,14 +243,10 @@ impl Manager {
       .port_manager
       .list_ports()
       .map(|v| v.iter().map(|v| v.port_name.clone()).collect());
-    let resp = port_names.map(|pns| SerialResponse::List { ports: pns });
-    self.send_message(
-      &sub_id,
-      resp.unwrap_or(SerialResponse::Error {
-        display: "".to_string(),
-        description: "".to_string(),
-      }),
-    );
+    match port_names.map(|pns| SerialResponse::List { ports: pns }) {
+      Ok(response) => self.send_message(&sub_id, response),
+      Err(error) => self.send_message(&sub_id, error.into()),
+    }
     Ok(())
   }
 
@@ -306,8 +301,10 @@ impl Manager {
   fn cleanup_bad_ports(&mut self, bad_ports: &HashSet<String>) {
     for port_name in bad_ports.iter() {
       // Tell everyone port is sick
-      let err_resp =
-        to_serial_response_error(ErrorKind::PortReadError(port_name.to_owned()).into());
+      let err_resp: SerialResponse = WebsocketSerialServerError::PortReadError {
+        port: port_name.clone(),
+      }
+      .into();
       self.broadcast_message_for_port(port_name, err_resp);
       // Tell everyone the sick ports were closed
       let close_resp = SerialResponse::Closed {
@@ -348,9 +345,12 @@ impl Manager {
   }
 
   /// Cleanup any bad subs where a message send failed
-  fn cleanup_bad_subs(&mut self, bad_subs: Vec<Error>) {
+  fn cleanup_bad_subs(&mut self, bad_subs: Vec<WebsocketSerialServerError>) {
     for e in bad_subs {
-      if let Error(ErrorKind::SubscriberSendError(sub_id), _) = e {
+      if let WebsocketSerialServerError::SubscriberSendError {
+        subscription_id: ref sub_id,
+      } = e
+      {
         // Remove subscriptions
         self.sub_manager.end_subscription(&sub_id);
         // Remove all write locks held by dead subscription

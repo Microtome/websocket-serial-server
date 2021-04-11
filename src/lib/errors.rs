@@ -1,87 +1,63 @@
-use crate::messages::{SerialRequest, SerialResponse};
+use crate::messages::SerialResponse;
+use anyhow::*;
+use hyper_tungstenite::tungstenite::error::ProtocolError;
+use hyper_tungstenite::tungstenite;
+use thiserror::Error;
 
-error_chain! {
-
-  foreign_links {
-    // Wrapped Format error
-    Fmt(::std::fmt::Error);
-    // Wrapped IO error
-    Io(::std::io::Error) #[cfg(unix)];
-    // Wrapped serial port error
-    Serialport(::serialport::Error) #[cfg(unix)];
-    // Wrapped Ut8 decode error
-    Utf8(::std::string::FromUtf8Error);
-    // Wrapped json error
-    Json(::serde_json::error::Error);
-    // Wrapped toml deserialization error
-    TomlDeserialize(::toml::de::Error);
-    // Wrapped toml serialization error
-    TomlSerialize(::toml::ser::Error);
-    // Wrapped sync send response error
-    SendResponse(::std::sync::mpsc::SendError<SerialResponse>);
-    // Wrapped Base64 decode error
-    Base64(::base64::DecodeError);
-    // Wrapped sync send request error
-    SendRequest(::std::sync::mpsc::SendError<(String,SerialRequest)>);
-    // wrapped send websocket error.
-    SendWsMessage(::websocket::result::WebSocketError);
-    // Wrapped ipv4 parse error
-    IpAddr(::std::net::AddrParseError);
-  }
-
-  errors{
+/// The kinds of errors that WebsocketSerialServer can return
+/// TODO Rename to WsspsError
+#[derive(Error, Debug)]
+pub enum WebsocketSerialServerError {
     /// Unknown server request
-    UnknownRequest{
-      description("Unknown request")
-      display("Unknown request,")
-    }
+    #[error("Unknown request")]
+    UnknownRequest,
     /// Open port not found
-    OpenPortNotFound(port:String){
-      description("Open serial port not found")
-      display("Serial port '{}' not found, try opening it first", port)
-    }
+    #[error("Open port '{port}' not found")]
+    OpenPortNotFound { port: String },
+    #[error("Subscription '{subscription_id}' not found")]
     /// Subscription not found
-    SubscriptionNotFound(sub_id:String){
-      description("Subscription not found")
-      display("Subscription for id '{}' not found", sub_id)
-    }
+    SubscriptionNotFound { subscription_id: String },
     /// Port already write locked error
-    AlreadyWriteLocked(port:String){
-      description("Port already write locked by another client")
-      display("Open serial port '{}' is already write locked by another client", port)
-    }
+    #[error("Port '{port}' is already writelocked")]
+    AlreadyWriteLocked { port: String },
     /// Need write lock error
-    NeedWriteLock(port:String){
-      description("Need write lock")
-      display("Write to open port '{}' failed, you need to write lock first", port)
-    }
+    #[error("Port '{port}' needs to be writelocked before writing")]
+    NeedWriteLock { port: String },
     /// Serial port read error
-    PortReadError(port:String){
-      description("Error reading serial port")
-      display("Read from port '{}' failed", port)
-    }
+    #[error("Port '{port}' had read error")]
+    PortReadError { port: String },
     /// Serial Port EOF error
-    PortEOFError(port:String){
-      description("Encountered EOF reading serial port")
-      display("Encountered EOF reading serial port {}", port)
-    }
+    #[error("Port '{port}' EOF")]
+    PortEofError { port: String },
     /// Serial port write error
-    PortWriteError(port:String){
-      description("Error writing serial port")
-      display("Writing to port '{}' failed", port)
-    }
+    #[error("Port '{port}' write error")]
+    PortWriteError { port: String },
     /// Send to subscriber error
-    SubscriberSendError(sub_id:String){
-      description("Error sending message to subscriber")
-      display("Send to subscriber '{}' failed", sub_id)
-    }
-  }
+    #[error("Failed send to subscriber '{subscription_id}'")]
+    SubscriberSendError { subscription_id: String },
+    /// Catchall for all others
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
 
-/// Convert Error to serial response error enum type
-pub fn to_serial_response_error(err: Error) -> SerialResponse {
-  SerialResponse::Error {
-    description: err.description().to_string(),
-    display: format!("{}", err),
-  }
+impl From<ProtocolError> for WebsocketSerialServerError {
+    fn from(protocol_error: ProtocolError) -> Self {
+        Self::Other(anyhow!(protocol_error))
+    }
+}
+
+impl From<tungstenite::Error> for WebsocketSerialServerError {
+    fn from(tungstenite_error: tungstenite::Error) -> Self {
+        Self::Other(anyhow!(tungstenite_error))
+    }
+}
+
+pub type Result<T> = std::result::Result<T, WebsocketSerialServerError>;
+
+impl From<WebsocketSerialServerError> for SerialResponse {
+    fn from(wss_error: WebsocketSerialServerError) -> Self {
+        SerialResponse::Error {
+            error: wss_error.to_string(),
+        }
+    }
 }

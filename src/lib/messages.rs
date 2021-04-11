@@ -124,10 +124,7 @@ pub enum SerialResponse {
   ///          }}
   ///
   /// ```
-  Error {
-    description: String,
-    display: String,
-  },
+  Error { error: String },
   /// Data that was read from port
   ///
   /// If the data could not be parsed into a utf8 string

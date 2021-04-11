@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::Sender;
 
+use anyhow::anyhow;
+
 use crate::errors::*;
 use crate::messages::*;
 
@@ -15,10 +17,12 @@ struct Subscription {
 impl Subscription {
   /// Send a message to a subscriber
   fn send_message(&self, msg: SerialResponse) -> Result<()> {
-    self
-      .subscriber
-      .send(msg)
-      .map_err(|e| ErrorKind::SendResponse(e).into())
+    Ok(
+      self
+        .subscriber
+        .send(msg)
+        .map_err(|e| WebsocketSerialServerError::Other(anyhow!(e)))?,
+    )
   }
 
   /// Register interest in a port
@@ -64,7 +68,9 @@ impl SubscriptionManager {
         sub.add_port(port_name);
         Ok(())
       }
-      None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
+      None => Err(WebsocketSerialServerError::SubscriptionNotFound {
+        subscription_id: sub_id.to_owned(),
+      }),
     }
   }
 
@@ -75,7 +81,9 @@ impl SubscriptionManager {
         sub.ports.retain(|p| p != port_name);
         Ok(())
       }
-      None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
+      None => Err(WebsocketSerialServerError::SubscriptionNotFound {
+        subscription_id: sub_id.to_owned(),
+      }),
     }
   }
 
@@ -118,7 +126,9 @@ impl SubscriptionManager {
   pub fn check_subscription_exists(&self, sub_id: &String) -> Result<()> {
     match self.subscriptions.contains_key(sub_id) {
       true => Ok(()),
-      false => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
+      false => Err(WebsocketSerialServerError::SubscriptionNotFound {
+        subscription_id: sub_id.to_owned(),
+      }),
     }
   }
 
@@ -130,17 +140,21 @@ impl SubscriptionManager {
   /// Send a message to the given subscription
   pub fn send_message(&self, sub_id: &String, msg: SerialResponse) -> Result<()> {
     match self.subscriptions.get(sub_id) {
-      None => Err(ErrorKind::SubscriptionNotFound(sub_id.to_string()).into()),
-      Some(sub) => sub
-        .subscriber
-        .send(msg)
-        .map_err(|e| ErrorKind::SendResponse(e).into()),
+      None => Err(WebsocketSerialServerError::SubscriptionNotFound {
+        subscription_id: sub_id.to_owned(),
+      }),
+      Some(sub) => Ok(
+        sub
+          .subscriber
+          .send(msg)
+          .map_err(|e| WebsocketSerialServerError::Other(anyhow!(e)))?,
+      ),
     }
   }
 
   /// Broadcast a messages to all subscribers, returning
   /// a vec of (sub_id,ErrorKind::SendResponse) failures if some sends fail
-  pub fn broadcast_message(&self, msg: SerialResponse) -> Vec<Error> {
+  pub fn broadcast_message(&self, msg: SerialResponse) -> Vec<WebsocketSerialServerError> {
     debug!("Broadcasting '{}' to all subscribers", &msg);
     let mut res = Vec::new();
     for (sub_id, sub) in self.subscriptions.iter() {
@@ -153,7 +167,11 @@ impl SubscriptionManager {
   }
 
   /// Broadcast message to all subscribers registered for a given port
-  pub fn broadcast_message_for_port(&self, port_name: &String, msg: SerialResponse) -> Vec<Error> {
+  pub fn broadcast_message_for_port(
+    &self,
+    port_name: &String,
+    msg: SerialResponse,
+  ) -> Vec<WebsocketSerialServerError> {
     debug!(
       "Broadcasting '{}' to all subscribers registered on port {}",
       &msg, port_name
@@ -285,5 +303,4 @@ mod tests {
     should_not_get_a_msg(&sub1_channel.1, "Subscriber 1");
     should_not_get_a_msg(&sub2_channel.1, "Subscriber 2");
   }
-
 }
